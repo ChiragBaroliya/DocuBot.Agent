@@ -28,11 +28,14 @@ builder.Services.AddSingleton<IOpenAIService>(sp =>
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
+builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent.Services.McpService>();
+builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
 
 var app = builder.Build();
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
 var aiService = app.Services.GetRequiredService<IOpenAIService>();
+var docOrchestrator = app.Services.GetRequiredService<DocuBot.Agent.Services.IDocumentationOrchestrator>();
 
 string branch = gitService.GetCurrentBranch();
 string stagedDiff = gitService.GetStagedDiff();

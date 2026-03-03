@@ -42,6 +42,11 @@ namespace DocuBot.AI.Services
             return await SendPromptAsync($"Summarize this diff for a PR description:\n{diff}");
         }
 
+        public async Task<string> GenerateDocumentationAsync(string codeOrComments)
+        {
+            return await SendPromptAsync($"Generate markdown documentation for the following code or comments:\n{codeOrComments}");
+        }
+
         private async Task<string> SendPromptAsync(string prompt)
         {
             int retryCount = 0;

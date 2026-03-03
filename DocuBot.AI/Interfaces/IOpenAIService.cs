@@ -6,5 +6,6 @@ namespace DocuBot.AI.Interfaces
     {
         Task<string> GenerateCommitMessageAsync(string diff);
         Task<string> GeneratePRDescriptionAsync(string diff);
+        Task<string> GenerateDocumentationAsync(string codeOrComments);
     }
 }
