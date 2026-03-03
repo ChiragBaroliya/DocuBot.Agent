@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocuBot.Infrastructure", "D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocuBot.MCP", "DocuBot.MCP\DocuBot.MCP.csproj", "{896FEF8A-6955-9BB9-A5F8-F80B14BE2B06}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocuBot.Tests", "DocuBot.Tests\DocuBot.Tests.csproj", "{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{896FEF8A-6955-9BB9-A5F8-F80B14BE2B06}.Release|x64.Build.0 = Release|Any CPU
 		{896FEF8A-6955-9BB9-A5F8-F80B14BE2B06}.Release|x86.ActiveCfg = Release|Any CPU
 		{896FEF8A-6955-9BB9-A5F8-F80B14BE2B06}.Release|x86.Build.0 = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|x64.Build.0 = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Debug|x86.Build.0 = Debug|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|x64.ActiveCfg = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|x64.Build.0 = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|x86.ActiveCfg = Release|Any CPU
+		{D9E155BE-7C11-8D4F-A57F-1EBE48146DBB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
