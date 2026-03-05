@@ -1,4 +1,5 @@
-﻿using DocuBot.Application.Interfaces;
+﻿
+using DocuBot.Application.Interfaces;
 using DocuBot.Infrastructure.Services;
 using DocuBot.Domain.Services;
 using DocuBot.AI.Services;
@@ -13,6 +14,9 @@ using System;
 using System.Linq;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Load environment variables from .env file
+DotNetEnv.Env.Load();
 
 builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton<IConventionalCommitGenerator, ConventionalCommitGenerator>();
