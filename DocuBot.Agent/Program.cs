@@ -52,16 +52,31 @@ if (!validator.ValidateBranchName(branch))
 }
 
 Console.WriteLine("Validating commit message...");
-Console.WriteLine("Enter your commit message:");
-string commitMsg = Console.ReadLine() ?? string.Empty;
+
+string commitMsgFile = args.Length > 0 ? args[0] : "";
+string commitMsg = "";
+
+if (!string.IsNullOrEmpty(commitMsgFile) && File.Exists(commitMsgFile))
+{
+    commitMsg = File.ReadAllText(commitMsgFile).Trim();
+}
+
+Console.WriteLine($"Commit message: {commitMsg}");
+
 if (!validator.ValidateCommitMessage(commitMsg))
 {
-    Console.WriteLine("ERROR: Commit message does not follow Conventional Commit format. Push blocked.");
+    Console.WriteLine("ERROR: Commit message does not follow Conventional Commit format.");
+
+    Console.WriteLine("Generating AI suggestion...");
+
+
+    string suggestedCommitMsg = await aiService.GenerateCommitMessageAsync(stagedDiff);
+
+    Console.WriteLine("Suggested commit message:");
+    Console.WriteLine(suggestedCommitMsg);
+
+    Console.WriteLine("Please update your commit message.");
+
     Environment.Exit(1);
 }
 
-Console.WriteLine("Suggesting AI-generated Conventional Commit message...");
-string aiCommitMsg = await aiService.GenerateCommitMessageAsync(stagedDiff);
-Console.WriteLine($"AI Suggestion: {aiCommitMsg}");
-
-Console.WriteLine("All checks passed. You may push your changes.");
