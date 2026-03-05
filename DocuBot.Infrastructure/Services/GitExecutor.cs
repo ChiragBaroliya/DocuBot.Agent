@@ -27,6 +27,7 @@ namespace DocuBot.Infrastructure.Services
             return RunGitCommand("git rev-parse --abbrev-ref HEAD").Trim();
         }
 
+
         public bool ValidateBranch(string branchName)
         {
             return _validator.ValidateBranchName(branchName);
@@ -35,6 +36,12 @@ namespace DocuBot.Infrastructure.Services
         public bool ValidateCommit(string commitMessage)
         {
             return _validator.ValidateCommitMessage(commitMessage);
+        }
+
+        public string GetLastCommitDiff()
+        {
+            // Returns the diff of the last commit (HEAD)
+            return RunGitCommand("git show HEAD");
         }
 
         private string RunGitCommand(string command)

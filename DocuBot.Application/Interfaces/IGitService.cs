@@ -4,6 +4,7 @@ namespace DocuBot.Application.Interfaces
     {
         string GetStagedDiff();
         string GetCurrentBranch();
+        string GetLastCommitDiff();
         bool ValidateBranch(string branchName);
         bool ValidateCommit(string commitMessage);
     }
