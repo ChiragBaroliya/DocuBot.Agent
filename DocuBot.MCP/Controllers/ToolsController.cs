@@ -1,6 +1,6 @@
-using DocuBot.Application.Interfaces;
-using DocuBot.MCP.Models;
 using Microsoft.AspNetCore.Mvc;
+using DocuBot.MCP.Services;
+using DocuBot.MCP.Models;
 
 namespace DocuBot.MCP.Controllers
 {
