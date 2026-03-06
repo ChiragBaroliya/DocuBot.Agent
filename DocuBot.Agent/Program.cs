@@ -82,6 +82,21 @@ if (!validator.ValidateCommitMessage(commitMsg))
         string suggestedCommitMsg = await aiService.GenerateCommitMessageAsync(stagedDiff);
         Console.WriteLine("Suggested commit message:");
         Console.WriteLine(suggestedCommitMsg);
+
+        // Generate markdown documentation for staged changes and save to docs/commit-doc.md
+        try
+        {
+            string documentation = await aiService.GenerateDocumentationAsync(stagedDiff);
+            string docPath = Path.Combine("docs", "commit-doc.md");
+            Directory.CreateDirectory("docs");
+            File.AppendAllText(docPath, documentation + Environment.NewLine);
+            Console.WriteLine($"\nMarkdown documentation generated at {docPath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Failed to generate markdown documentation.");
+            Console.WriteLine(ex.Message);
+        }
     }
     catch (Exception ex)
     {
@@ -90,35 +105,22 @@ if (!validator.ValidateCommitMessage(commitMsg))
         Console.WriteLine(ex.ToString());   // This prints full message + stack trace
     }
 
-    Console.WriteLine("Please update your commit message.");
+    Console.WriteLine("Please review the updated commit message.");
     Environment.Exit(1);
 }
 
 
-Console.WriteLine("\nFiles staged for commit:");
-var changedFiles = stagedDiff.Split('\n')
-    .Where(line => line.StartsWith("+++ b/") || line.StartsWith("--- a/"))
-    .Select(line => line.Replace("+++ b/", "").Replace("--- a/", ""))
-    .Distinct()
-    .Where(f => !string.IsNullOrWhiteSpace(f) && f != "/dev/null")
-    .ToList();
-foreach (var file in changedFiles)
-{
-    Console.WriteLine("- " + file);
-}
+//Console.WriteLine("\nFiles staged for commit:");
+//var changedFiles = stagedDiff.Split('\n')
+//    .Where(line => line.StartsWith("+++ b/") || line.StartsWith("--- a/"))
+//    .Select(line => line.Replace("+++ b/", "").Replace("--- a/", ""))
+//    .Distinct()
+//    .Where(f => !string.IsNullOrWhiteSpace(f) && f != "/dev/null")
+//    .ToList();
+//foreach (var file in changedFiles)
+//{
+//    Console.WriteLine("- " + file);
+//}
 
-// Generate markdown documentation for staged changes and save to docs/commit-doc.md
-try
-{
-    string documentation = await aiService.GenerateDocumentationAsync(stagedDiff);
-    string docPath = Path.Combine("docs", "commit-doc.md");
-    Directory.CreateDirectory("docs");
-    File.WriteAllText(docPath, documentation);
-    Console.WriteLine($"\nMarkdown documentation generated at {docPath}");
-}
-catch (Exception ex)
-{
-    Console.WriteLine("Failed to generate markdown documentation.");
-    Console.WriteLine(ex.Message);
-}
+
 
