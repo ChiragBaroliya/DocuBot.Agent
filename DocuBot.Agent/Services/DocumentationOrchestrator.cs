@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DocuBot.AI.Interfaces;
+using DocuBot.Infrastructure.Services;
 using DocuBot.Agent.Services;
 
 namespace DocuBot.Agent.Services
@@ -8,12 +9,12 @@ namespace DocuBot.Agent.Services
     public class DocumentationOrchestrator : IDocumentationOrchestrator
     {
         private readonly IMcpService _mcpService;
-        private readonly IOpenAIService _openAIService;
+        private readonly IAiModelService _aiModelService;
 
-        public DocumentationOrchestrator(IMcpService mcpService, IOpenAIService openAIService)
+        public DocumentationOrchestrator(IMcpService mcpService, IAiModelService aiModelService)
         {
             _mcpService = mcpService;
-            _openAIService = openAIService;
+            _aiModelService = aiModelService;
         }
 
         public async Task GenerateAndCommitDocumentationAsync()
@@ -23,7 +24,7 @@ namespace DocuBot.Agent.Services
             {
                 // Fetch file content from MCP
                 var codeContent = await _mcpService.FetchFileContentAsync(file);
-                var markdown = await _openAIService.GenerateDocumentationAsync(codeContent);
+                var markdown = await _aiModelService.GenerateDocumentationAsync(codeContent);
                 var markdownFilePath = file + ".md";
                 await _mcpService.CommitMarkdownDocumentationAsync(markdownFilePath, markdown);
             }

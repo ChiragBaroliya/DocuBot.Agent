@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using DocuBot.Infrastructure.Services;
 using Microsoft.Extensions.Hosting;
 using DocuBot.MCP.Services;
+using DocuBot.Infrastructure.Services;
+using DocuBot.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IMcpService, McpService>();
-builder.Services.AddSingleton<IOpenAIService, AiModelService>();
+builder.Services.AddSingleton<IAiModelService, OllamaService>();
 builder.Services.AddSingleton<DocumentationOrchestrator>();
 builder.Services.AddLogging();
 

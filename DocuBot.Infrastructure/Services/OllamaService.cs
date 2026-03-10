@@ -1,13 +1,13 @@
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using DocuBot.AI.Interfaces;
+using System.Net.Http;
+using System.Threading.Tasks;
 
-namespace DocuBot.Agent.Services
+
+namespace DocuBot.Infrastructure.Services
 {
-    public class OllamaService : IOpenAIService
+    public class OllamaService : IAiModelService
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<OllamaService> _logger;

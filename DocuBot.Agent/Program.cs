@@ -1,9 +1,6 @@
 ﻿using DocuBot.Application.Interfaces;
 using DocuBot.Infrastructure.Services;
 using DocuBot.Domain.Services;
-using DocuBot.AI.Services;
-using DocuBot.AI.Options;
-using DocuBot.AI.Interfaces;
 using DocuBot.Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +17,7 @@ builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<IOpenAIService, DocuBot.Agent.Services.OllamaService>();
+builder.Services.AddSingleton<IAiModelService, OllamaService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -30,7 +27,7 @@ builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator,
 var app = builder.Build();
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
-var aiService = app.Services.GetRequiredService<IOpenAIService>();
+var aiService = app.Services.GetRequiredService<IAiModelService>();
 var docOrchestrator = app.Services.GetRequiredService<DocuBot.Agent.Services.IDocumentationOrchestrator>();
 
 
@@ -94,17 +91,6 @@ if (!validator.ValidateCommitMessage(commitMsg))
 }
 
 
-//Console.WriteLine("\nFiles staged for commit:");
-//var changedFiles = stagedDiff.Split('\n')
-//    .Where(line => line.StartsWith("+++ b/") || line.StartsWith("--- a/"))
-//    .Select(line => line.Replace("+++ b/", "").Replace("--- a/", ""))
-//    .Distinct()
-//    .Where(f => !string.IsNullOrWhiteSpace(f) && f != "/dev/null")
-//    .ToList();
-//foreach (var file in changedFiles)
-//{
-//    Console.WriteLine("- " + file);
-//}
 
 
 

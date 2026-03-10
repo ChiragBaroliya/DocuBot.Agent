@@ -7,6 +7,7 @@ using Moq;
 using Moq.Protected;
 using DocuBot.MCP.Services;
 using Xunit;
+using DocuBot.Infrastructure.Services;
 
 namespace DocuBot.Tests.Services
 {
@@ -33,8 +34,8 @@ namespace DocuBot.Tests.Services
             var httpClientFactoryMock = new Mock<IHttpClientFactory>();
             httpClientFactoryMock.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-            var loggerMock = new Mock<ILogger<AiModelService>>();
-            var service = new AiModelService(httpClientFactoryMock.Object, loggerMock.Object);
+            var loggerMock = new Mock<ILogger<OllamaService>>();
+            var service = new OllamaService(httpClientFactoryMock.Object, loggerMock.Object);
 
             // Act
             var result = await service.GenerateDocumentationAsync(expectedPrompt);
@@ -60,8 +61,8 @@ namespace DocuBot.Tests.Services
             var httpClientFactoryMock = new Mock<IHttpClientFactory>();
             httpClientFactoryMock.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-            var loggerMock = new Mock<ILogger<AiModelService>>();
-            var service = new AiModelService(httpClientFactoryMock.Object, loggerMock.Object);
+            var loggerMock = new Mock<ILogger<OllamaService>>();
+            var service = new OllamaService(httpClientFactoryMock.Object, loggerMock.Object);
 
             // Act
             var result = await service.GenerateDocumentationAsync("Test");

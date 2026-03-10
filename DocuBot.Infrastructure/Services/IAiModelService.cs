@@ -1,8 +1,7 @@
-using System.Threading.Tasks;
-
-namespace DocuBot.AI.Interfaces
+namespace DocuBot.Infrastructure.Services
 {
-    public interface IOpenAIService
+    using System.Threading.Tasks;
+    public interface IAiModelService
     {
         Task<string> GenerateCommitMessageAsync(string diff);
         Task<string> GeneratePRDescriptionAsync(string diff);

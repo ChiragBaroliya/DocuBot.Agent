@@ -12,11 +12,11 @@
     <ProjectReference Include="..\DocuBot.Application\DocuBot.Application.csproj" />
     <ProjectReference Include="..\DocuBot.CLI\DocuBot.CLI.csproj" />
     <ProjectReference Include="..\DocuBot.Domain\DocuBot.Domain.csproj" />
-    <ProjectReference Include="..\DocuBot.Infrastructure\DocuBot.Infrastructure.csproj" />
+    <ProjectReference Include="..\\DocuBot.Infrastructure\\DocuBot.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
   </ItemGroup>
 
-</Project>
+</Project>  

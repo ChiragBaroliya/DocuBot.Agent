@@ -1,20 +1,22 @@
 using System;
 using System.Threading.Tasks;
+using DocuBot.Infrastructure.Services;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using DocuBot.Infrastructure.Services;
 
 namespace DocuBot.MCP.Services
 {
     public class DocumentationOrchestrator
     {
         private readonly IMcpService _mcpService;
-        private readonly IOpenAIService _openAIService;
+        private readonly IAiModelService _aiModelService;
         private readonly ILogger<DocumentationOrchestrator> _logger;
 
-        public DocumentationOrchestrator(IMcpService mcpService, IOpenAIService openAIService, ILogger<DocumentationOrchestrator> logger)
+        public DocumentationOrchestrator(IMcpService mcpService, IAiModelService aiModelService, ILogger<DocumentationOrchestrator> logger)
         {
             _mcpService = mcpService;
-            _openAIService = openAIService;
+            _aiModelService = aiModelService;
             _logger = logger;
         }
 
@@ -30,13 +32,7 @@ namespace DocuBot.MCP.Services
                 {
                     fileContents[file] = await _mcpService.GetFileContentAsync(file);
                 }
-                var aiInput = new
-                {
-                    diff,
-                    files,
-                    fileContents
-                };
-                var markdown = await _openAIService.GenerateDocumentationAsync(aiInput);
+                var markdown = await _aiModelService.GenerateDocumentationAsync(diff);
                 var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
                 var docPath = $"docs/commit-{timestamp}.md";
                 var writeResult = await _mcpService.WriteFileAsync(docPath, markdown);

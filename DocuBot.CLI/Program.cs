@@ -5,6 +5,7 @@ using DocuBot.AI.Services;
 using DocuBot.AI.Options;
 using DocuBot.AI.Interfaces;
 using DocuBot.CLI.Commands;
+using DocuBot.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,17 +16,9 @@ using System;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton<IConventionalCommitGenerator, ConventionalCommitGenerator>();
-builder.Services.AddHttpClient<OpenAIService>();
-builder.Services.AddSingleton<IOpenAIService>(sp =>
-{
-    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenAIOptions>>();
-    var logger = sp.GetRequiredService<ILogger<OpenAIService>>();
-    var generator = sp.GetRequiredService<IConventionalCommitGenerator>();
-    return new OpenAIService(httpClientFactory.CreateClient(), options, logger, generator);
-});
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IAiModelService, OllamaService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -42,7 +35,7 @@ switch (command)
         break;
     case "suggest-commit":
         var gitService = app.Services.GetRequiredService<IGitService>();
-        var aiService = app.Services.GetRequiredService<IOpenAIService>();
+        var aiService = app.Services.GetRequiredService<IAiModelService>();
         var diff = gitService.GetStagedDiff();
         var commitMsg = await aiService.GenerateCommitMessageAsync(diff);
         Console.WriteLine(commitMsg);
