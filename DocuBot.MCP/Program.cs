@@ -10,7 +10,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IMcpService, McpService>();
-builder.Services.AddSingleton<IOpenAIService, OpenAIService>();
+builder.Services.AddSingleton<IOpenAIService, AiModelService>();
 builder.Services.AddSingleton<DocumentationOrchestrator>();
 builder.Services.AddLogging();
 
