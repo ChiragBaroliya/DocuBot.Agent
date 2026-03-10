@@ -35,8 +35,11 @@ namespace DocuBot.MCP.Services
             var responseString = await response.Content.ReadAsStringAsync();
 
             using var doc = JsonDocument.Parse(responseString);
-            var result = doc.RootElement.GetProperty("response").GetString();
-            return result ?? string.Empty;
+            if (doc.RootElement.TryGetProperty("response", out var responseProp))
+            {
+                return responseProp.GetString() ?? string.Empty;
+            }
+            return string.Empty;
         }
     }
 }

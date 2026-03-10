@@ -16,7 +16,8 @@
     <ProjectReference Include="..\DocuBot.Domain\DocuBot.Domain.csproj" />
     <ProjectReference Include="..\DocuBot.Infrastructure\DocuBot.Infrastructure.csproj" />
     <ProjectReference Include="..\DocuBot.AI\DocuBot.AI.csproj" />
-    <ProjectReference Include="..\DocuBot.Application\DocuBot.Application.csproj" />
+   <ProjectReference Include="..\DocuBot.Application\DocuBot.Application.csproj" />
+   <ProjectReference Include="..\DocuBot.MCP\DocuBot.MCP.csproj" />
   </ItemGroup>
 
 </Project>
