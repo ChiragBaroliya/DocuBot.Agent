@@ -19,24 +19,8 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 builder.Logging.AddFilter("System", LogLevel.Warning);
 
-// Load environment variables from .env file
-DotNetEnv.Env.Load();
-
-builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection("OpenAI"));
-builder.Services.AddSingleton<IConventionalCommitGenerator, ConventionalCommitGenerator>();
-builder.Services.AddSingleton<IOpenAIService>(sp =>
-{
-    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();        
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenAIOptions>>();
-    var logger = sp.GetRequiredService<ILogger<OpenAIService>>();
-    var generator = sp.GetRequiredService<IConventionalCommitGenerator>();
-    return new OpenAIService(httpClientFactory.CreateClient(), options, logger, generator);
-});
-builder.Services.AddHttpClient<OpenAIService>(client =>
-{
-    client.BaseAddress = new Uri("https://api.openai.com/");
-});
-builder.Services.AddSingleton<IOpenAIService, OpenAIService>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IOpenAIService, DocuBot.Agent.Services.OllamaService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
