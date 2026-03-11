@@ -17,7 +17,7 @@ namespace DocuBot.Tests.Services
         public async Task GenerateDocumentationAsync_ReturnsResponse()
         {
             // Arrange
-            var expectedPrompt = "Test prompt";
+            var expectedPrompt = "Respond with ONLY the git commit message. No explanation. No quotes.\n\nGenerating commit message with prompt:\n\ndiff --git a/src/App.js b/src/App.js\nindex 7cfc5f9..cdf3d0e 100644\n--- a/src/App.js\n+++ b/src/App.js\n@@ -5,12 +5,21 @@\nconstructor(props) {\nthis.state = { searchQuery: '' };\n}\n\nhandleSearch = (query) => {\nthis.setState({ searchQuery: query });\n}";
             var expectedResponse = "Commit message";
             var jsonResponse = $"{{\"response\":\"{expectedResponse}\"}}";
 
@@ -38,7 +38,7 @@ namespace DocuBot.Tests.Services
             var service = new OllamaService(httpClientFactoryMock.Object, loggerMock.Object);
 
             // Act
-            var result = await service.GenerateDocumentationAsync(expectedPrompt);
+            var result = await service.GenerateCommitMessageAsync(expectedPrompt);
 
             // Assert
             Assert.Equal(expectedResponse, result);

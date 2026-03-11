@@ -16,8 +16,14 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 builder.Logging.AddFilter("System", LogLevel.Warning);
 
+builder.Services.AddSingleton<IAiModelService, GoogleGeminiAPIService>();
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<IAiModelService, OllamaService>();
+builder.Services.AddSingleton<IAiModelService>(sp =>
+{
+    var httpClient = sp.GetRequiredService<HttpClient>();
+    var apiKey = Environment.GetEnvironmentVariable("AIzaSyBKQ2GVOpKyfD2pwBpUea1UDoWNwSEfX_g");
+    return new GoogleGeminiAPIService(httpClient, apiKey);
+});
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();

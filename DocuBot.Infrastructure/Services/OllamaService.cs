@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System;
 
 
 namespace DocuBot.Infrastructure.Services
@@ -46,7 +47,10 @@ namespace DocuBot.Infrastructure.Services
             };
 
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             var requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+            try
+            {
             var response = await client.PostAsync("http://192.168.0.220:11434/api/generate", requestContent);
             response.EnsureSuccessStatusCode();
             var responseString = await response.Content.ReadAsStringAsync();
@@ -57,6 +61,17 @@ namespace DocuBot.Infrastructure.Services
                 return responseProp.GetString() ?? string.Empty;
             }
             return string.Empty;
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "OllamaService request timed out after {Timeout} minutes.", client.Timeout.TotalMinutes);
+                return "ERROR: AI request timed out. Please try again or check Ollama server availability.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "OllamaService request failed.");
+                return $"ERROR: AI request failed: {ex.Message}";
+            }
         }
     }
 }
