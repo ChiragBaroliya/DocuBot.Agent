@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -16,12 +17,13 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 builder.Logging.AddFilter("System", LogLevel.Warning);
 
-builder.Services.AddSingleton<IAiModelService, GoogleGeminiAPIService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAiModelService>(sp =>
 {
     var httpClient = sp.GetRequiredService<HttpClient>();
-    return new GoogleGeminiAPIService(httpClient, string.Empty);
+    var config = sp.GetRequiredService<IConfiguration>();
+    var apiKey = config.GetSection("GoogleGemini:ApiKey").Value;
+    return new GoogleGeminiAPIService(httpClient, apiKey);
 });
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
