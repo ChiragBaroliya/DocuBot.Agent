@@ -14,7 +14,8 @@ namespace DocuBot.Infrastructure.Services
         public GoogleGeminiAPIService(HttpClient httpClient, string apiKey)
         {
             _httpClient = httpClient;
-            _apiKey = "AIzaSyBKQ2GVOpKyfD2pwBpUea1UDoWNwSEfX_g";
+            //_apiKey = "AIzaSyBKQ2GVOpKyfD2pwBpUea1UDoWNwSEfX_g"; 
+            _apiKey = "AIzaSyBtxlwDz2cPMhEKXJN8L09aCAJTFfRTvrQ";
         }
 
         private async Task<string> SendPromptAsync(string prompt)

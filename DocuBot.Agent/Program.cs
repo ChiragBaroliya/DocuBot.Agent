@@ -21,8 +21,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAiModelService>(sp =>
 {
     var httpClient = sp.GetRequiredService<HttpClient>();
-    var apiKey = Environment.GetEnvironmentVariable("AIzaSyBKQ2GVOpKyfD2pwBpUea1UDoWNwSEfX_g");
-    return new GoogleGeminiAPIService(httpClient, apiKey);
+    return new GoogleGeminiAPIService(httpClient, string.Empty);
 });
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
@@ -57,33 +56,67 @@ if (!string.IsNullOrEmpty(commitMsgFile) && File.Exists(commitMsgFile))
     commitMsg = File.ReadAllText(commitMsgFile).Trim();
 }
 
-Console.WriteLine($"Commit message: {commitMsg}");
-
 
 if (!validator.ValidateCommitMessage(commitMsg))
 {
-    Console.WriteLine("Generating AI suggestion...");
-
     try
     {
         string suggestedCommitMsg = await aiService.GenerateCommitMessageAsync(stagedDiff);
         Console.WriteLine("Suggested commit message:");
         Console.WriteLine(suggestedCommitMsg);
 
+        /*
         // Generate markdown documentation for staged changes and save to docs/commit-doc.md
         try
         {
             string documentation = await aiService.GenerateDocumentationAsync(stagedDiff);
             string docPath = Path.Combine("docs", "commit-doc.md");
             Directory.CreateDirectory("docs");
-            File.AppendAllText(docPath, documentation + Environment.NewLine);
-            Console.WriteLine($"\nMarkdown documentation generated at {docPath}");
+
+            // Compute hash of stagedDiff
+            string stagedDiffHash = "";
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                var hashBytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(stagedDiff));
+                stagedDiffHash = BitConverter.ToString(hashBytes).Replace("-", "");
+            }
+
+            bool alreadyDocumented = false;
+            if (File.Exists(docPath))
+            {
+                var docContent = File.ReadAllText(docPath);
+                if (docContent.Contains(stagedDiffHash))
+                {
+                    alreadyDocumented = true;
+                }
+            }
+
+            if (!alreadyDocumented)
+            {
+                File.AppendAllText(docPath, $"<!-- DIFF_HASH:{stagedDiffHash} -->\n" + documentation + Environment.NewLine);
+                Console.WriteLine($"\nMarkdown documentation generated at {docPath}");
+                // Automatically stage the documentation file
+                try
+                {
+                    gitService.StageFile(docPath);
+                    Console.WriteLine($"{docPath} staged for commit.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to stage {docPath}: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"\nDocumentation for staged diff already exists in {docPath}.");
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine("Failed to generate markdown documentation.");
             Console.WriteLine(ex.Message);
         }
+        */
     }
     catch (Exception ex)
     {
@@ -92,9 +125,21 @@ if (!validator.ValidateCommitMessage(commitMsg))
         Console.WriteLine(ex.ToString());   // This prints full message + stack trace
     }
 
-    Console.WriteLine("Please review the updated commit message.");
     Environment.Exit(1);
 }
+
+// If commit message is valid, commit staged files
+//try
+//{
+//    var commitResult = gitService.CommitStagedFiles(commitMsg);
+//    Console.WriteLine($"\nCommit successful: {commitResult}");
+//}
+//catch (Exception ex)
+//{
+//    Console.WriteLine("Commit failed.");
+//    Console.WriteLine(ex.Message);
+//    Environment.Exit(1);
+//}
 
 
 

@@ -7,5 +7,7 @@ namespace DocuBot.Application.Interfaces
         string GetLastCommitDiff();
         bool ValidateBranch(string branchName);
         bool ValidateCommit(string commitMessage);
+        string CommitStagedFiles(string commitMessage);
+        void StageFile(string filePath);
     }
 }

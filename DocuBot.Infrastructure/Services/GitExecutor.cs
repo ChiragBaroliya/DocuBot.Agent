@@ -37,6 +37,12 @@ namespace DocuBot.Infrastructure.Services
         {
             return _validator.ValidateCommitMessage(commitMessage);
         }
+        
+        public string CommitStagedFiles(string commitMessage)
+        {
+            // Commit staged files with the provided commit message
+            return RunGitCommand($"git commit -m \"{commitMessage.Replace("\"", "'")}\"");
+        }
 
         public string GetLastCommitDiff()
         {
@@ -69,6 +75,10 @@ namespace DocuBot.Infrastructure.Services
                 _logger.LogError(ex, "Error running git command: {Command}", command);
                 throw;
             }
+        }
+        public void StageFile(string filePath)
+        {
+            RunGitCommand($"git add \"{filePath}\"");
         }
     }
 }
