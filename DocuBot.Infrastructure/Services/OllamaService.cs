@@ -49,6 +49,16 @@ namespace DocuBot.Infrastructure.Services
             return await GenerateOllamaResponseAsync(prompt);
         }
 
+        public async Task<string> GenerateCodeReviewAsync(string diff)
+        {
+            var prompt = "You are an expert code reviewer focusing on Code Quality and Code Security.\n" +
+                         "Review the provided git diff and provide suggestions ONLY for HIGH and CRITICAL severity issues.\n" +
+                         "If there are no HIGH or CRITICAL issues, respond with 'Status: PASS - No high or critical issues found.'\n" +
+                         "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the issues.\n" +
+                         $"Format the output as a Markdown report.\n\nGit Diff:\n{diff}";
+            return await GenerateOllamaResponseAsync(prompt);
+        }
+
         private async Task<string> GenerateOllamaResponseAsync(string prompt)
         {
             var requestBody = new

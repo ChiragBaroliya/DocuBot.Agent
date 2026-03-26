@@ -5,7 +5,6 @@ using DocuBot.AI.Services;
 using DocuBot.AI.Options;
 using DocuBot.AI.Interfaces;
 using DocuBot.CLI.Commands;
-using DocuBot.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
