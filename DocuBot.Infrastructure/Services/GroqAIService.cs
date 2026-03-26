@@ -10,7 +10,8 @@ namespace DocuBot.Infrastructure.Services
     public class GroqAIService : IAiModelService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiKey ;
+        private readonly string _apiKey;
+        private readonly string _model;
         private const string GroqApiUrl = "https://api.groq.com/openai/v1/responses";
 
         public GroqAIService(HttpClient httpClient, string apiKey)
@@ -18,8 +19,10 @@ namespace DocuBot.Infrastructure.Services
 
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("Groq API key must be provided and cannot be empty.", nameof(apiKey));
+            
             _httpClient = httpClient;
             _apiKey = apiKey;
+            _model = Environment.GetEnvironmentVariable("GROQAI_MODEL") ?? "llama-3.3-70b-versatile";
         }
 
         public async Task<string> GetResponseAsync(string model, string input)
@@ -80,7 +83,7 @@ namespace DocuBot.Infrastructure.Services
 
             string prompt = $"{guidance}Git diff:\n{diff}";
 
-            string model = "llama-3.3-70b-versatile";
+            string model = _model;
 
             var responseJson = await GetResponseAsync(model, prompt);
 
@@ -97,7 +100,7 @@ namespace DocuBot.Infrastructure.Services
                 "IMPORTANT: Return ONLY the word 'true' or 'false', nothing else.";
 
             string prompt = $"{guidance}\n\nCommit Message:\n{commitMessage}\n\nGit Diff:\n{diff}";
-            string model = "llama-3.3-70b-versatile";
+            string model = _model;
 
             var responseJson = await GetResponseAsync(model, prompt);
             var responseText = ExtractTextFromResponse(responseJson).Trim().ToLower();
@@ -110,7 +113,7 @@ namespace DocuBot.Infrastructure.Services
         public async Task<string> GeneratePRDescriptionAsync(string diff)
         {
             string prompt = $"Write a detailed pull request description for the following code changes:\n{diff}";
-            string model = "gpt-3.5-turbo";
+            string model = _model;
             var responseJson = await GetResponseAsync(model, prompt);
             return ExtractTextFromResponse(responseJson);
         }
@@ -118,7 +121,23 @@ namespace DocuBot.Infrastructure.Services
         public async Task<string> GenerateDocumentationAsync(string codeOrComments)
         {
             string prompt = $"Generate documentation comments for the following code or comments:\n{codeOrComments}";
-            string model = "gpt-3.5-turbo";
+            string model = _model;
+            var responseJson = await GetResponseAsync(model, prompt);
+            return ExtractTextFromResponse(responseJson);
+        }
+
+        public async Task<string> GenerateCodeReviewAsync(string diff)
+        {
+            string guidance = 
+                "You are an expert code reviewer focusing on Code Quality and Code Security.\n" +
+                "Review the provided git diff and provide suggestions ONLY for HIGH and CRITICAL severity issues.\n" +
+                "If there are no HIGH or CRITICAL issues, respond with 'Status: PASS - No high or critical issues found.'\n" +
+                "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the issues.\n" +
+                "Format the output as a Markdown report.\n";
+
+            string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
+            string model = _model; 
+
             var responseJson = await GetResponseAsync(model, prompt);
             return ExtractTextFromResponse(responseJson);
         }

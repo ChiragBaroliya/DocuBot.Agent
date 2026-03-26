@@ -7,5 +7,6 @@ namespace DocuBot.Infrastructure.Services
         Task<bool> ValidateCommitMessageAsync(string commitMessage, string diff);
         Task<string> GeneratePRDescriptionAsync(string diff);
         Task<string> GenerateDocumentationAsync(string codeOrComments);
+        Task<string> GenerateCodeReviewAsync(string diff);
     }
 }

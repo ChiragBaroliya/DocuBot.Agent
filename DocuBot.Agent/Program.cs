@@ -6,6 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using DotNetEnv;
+
+Env.TraversePath().Load();
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -42,10 +45,30 @@ string commitMsg = string.Empty;
 Console.WriteLine($"Current branch: {branch}");
 
 // ✅ Branch validation
-if (!validator.ValidateBranchName(branch))
+var ignoredBranches = new[] { "master", "main", "develop" };
+if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch))
 {
     Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
     Environment.Exit(1);
+}
+
+if (!string.IsNullOrWhiteSpace(stagedDiff))
+{
+    Console.WriteLine("🤖 Running Code Quality & Security Review...");
+    string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
+    string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
+    File.WriteAllText(reportPath, codeReviewReport);
+    
+    if (codeReviewReport.Contains("Status: PASS"))
+    {
+        Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
+    }
+    else
+    {
+        Console.WriteLine($"\n❌ Code Review found HIGH or CRITICAL issues.");
+        Console.WriteLine($"Please check {reportPath} for details.");
+        Environment.Exit(1);
+    }
 }
 
 // Read commit message from file (if provided) or directly from args
