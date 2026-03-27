@@ -12,7 +12,7 @@ namespace DocuBot.Infrastructure.Services
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
         private readonly string _model;
-        private const string GroqApiUrl = "https://api.groq.com/openai/v1/responses";
+        private const string GroqApiUrl = "https://api.groq.com/openai/v1/chat/completions";
 
         public GroqAIService(HttpClient httpClient, string apiKey)
         {
@@ -30,7 +30,10 @@ namespace DocuBot.Infrastructure.Services
             var requestBody = new
             {
                 model = model,
-                input = input
+                messages = new[]
+                {
+                    new { role = "user", content = input }
+                }
             };
 
             var requestJson = JsonSerializer.Serialize(requestBody);
@@ -129,10 +132,11 @@ namespace DocuBot.Infrastructure.Services
         public async Task<string> GenerateCodeReviewAsync(string diff)
         {
             string guidance = 
-                "You are an expert code reviewer focusing on Code Quality and Code Security.\n" +
-                "Review the provided git diff and provide suggestions ONLY for HIGH and CRITICAL severity issues.\n" +
+                "You are an expert security code reviewer focusing on OWASP Top 10 security risks.\n" +
+                "Review the provided git diff for staged files and provide suggestions ONLY for HIGH and CRITICAL severity issues related to OWASP Top 10 (e.g., SQL injection, Sensitive Data Exposure, etc.).\n" +
                 "If there are no HIGH or CRITICAL issues, respond with 'Status: PASS - No high or critical issues found.'\n" +
-                "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the issues.\n" +
+                "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the violations including the specific OWASP category.\n" +
+                "IMPORTANT: Your response MUST contain either 'Status: PASS' or 'Status: REVIEW_REQUIRED' prominently.\n" +
                 "Format the output as a Markdown report.\n";
 
             string prompt = $"{guidance}\n\nGit Diff:\n{diff}";

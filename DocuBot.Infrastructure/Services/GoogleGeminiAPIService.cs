@@ -78,10 +78,11 @@ namespace DocuBot.Infrastructure.Services
 
         public Task<string> GenerateCodeReviewAsync(string diff)
         {
-            var prompt = "You are an expert code reviewer focusing on Code Quality and Code Security.\n" +
-                         "Review the provided git diff and provide suggestions ONLY for HIGH and CRITICAL severity issues.\n" +
+            var prompt = "You are an expert security code reviewer focusing on OWASP Top 10 security risks.\n" +
+                         "Review the provided git diff for staged files and provide suggestions ONLY for HIGH and CRITICAL severity issues related to OWASP Top 10 (e.g., SQL injection, Sensitive Data Exposure, etc.).\n" +
                          "If there are no HIGH or CRITICAL issues, respond with 'Status: PASS - No high or critical issues found.'\n" +
-                         "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the issues.\n" +
+                         "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the violations including the specific OWASP category.\n" +
+                         "IMPORTANT: Your response MUST contain either 'Status: PASS' or 'Status: REVIEW_REQUIRED' prominently.\n" +
                          $"Format the output as a Markdown report.\n\nGit Diff:\n{diff}";
             return SendPromptAsync(prompt);
         }

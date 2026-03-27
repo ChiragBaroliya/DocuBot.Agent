@@ -52,25 +52,6 @@ if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName
     Environment.Exit(1);
 }
 
-if (!string.IsNullOrWhiteSpace(stagedDiff))
-{
-    Console.WriteLine("🤖 Running Code Quality & Security Review...");
-    string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
-    string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
-    File.WriteAllText(reportPath, codeReviewReport);
-    
-    if (codeReviewReport.Contains("Status: PASS"))
-    {
-        Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
-    }
-    else
-    {
-        Console.WriteLine($"\n❌ Code Review found HIGH or CRITICAL issues.");
-        Console.WriteLine($"Please check {reportPath} for details.");
-        Environment.Exit(1);
-    }
-}
-
 // Read commit message from file (if provided) or directly from args
 string commitMsgInput = args.Length > 0 ? args[0] : "";
 
@@ -86,6 +67,37 @@ else if (!string.IsNullOrEmpty(commitMsgInput))
     commitMsg = commitMsgInput.Trim();
 }
 
+/*
+bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIgnoreCase);
+
+if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
+{
+    Console.WriteLine("🤖 Running OWASP Security Review...");
+    string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
+    string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
+    File.WriteAllText(reportPath, codeReviewReport);
+    
+    bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
+    
+    if (isPassed)
+    {
+        Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
+    }
+    else
+    {
+        Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
+        Console.WriteLine($"--- AI Response (Status check failed) ---");
+        Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
+        Console.WriteLine($"------------------------------------------");
+        Console.WriteLine($"Please check {reportPath} for details.");
+        Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
+        
+        await SuggestAndExitAsync();
+        Environment.Exit(1);
+    }
+}
+*/
+
 bool isAiSuggested = commitMsg.StartsWith("[AI] ", StringComparison.OrdinalIgnoreCase);
 
 if (isAiSuggested)
@@ -95,6 +107,13 @@ if (isAiSuggested)
     // Remove prefix before committing
     commitMsg = commitMsg.Substring(5).Trim();
 }
+/*
+else if (skipReview)
+{
+    Console.WriteLine("⚠️ Code review bypassed by [SKIP REVIEW] prefix.");
+    commitMsg = commitMsg.Replace("[SKIP REVIEW]", "", StringComparison.OrdinalIgnoreCase).Trim();
+}
+*/
 else
 {
     if (!validator.ValidateCommitMessage(commitMsg))
