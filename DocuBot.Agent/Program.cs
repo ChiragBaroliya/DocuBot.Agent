@@ -190,17 +190,22 @@ string ExtractValidCommitMessage(string aiResponse)
         "style:", "refactor:", "perf:", "test:", "build:", "ci:", "revert:"
     };
 
-    var lines = aiResponse.Split('\n');
+    var lines = aiResponse.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-    foreach (var line in lines)
+    // Find the first line that starts with an allowed type
+    int startIndex = -1;
+    for (int i = 0; i < lines.Length; i++)
     {
-        var trimmed = line.Trim('`', ' ', '\r');
-
+        var trimmed = lines[i].Trim('`', ' ', '\r');
         if (allowedTypes.Any(type => trimmed.StartsWith(type, StringComparison.OrdinalIgnoreCase)))
         {
-            return trimmed;
+            startIndex = i;
+            break;
         }
     }
 
-    return string.Empty;
+    if (startIndex == -1) return string.Empty;
+
+    // Return the rest of the response starting from the valid line
+    return string.Join("\n", lines.Skip(startIndex)).Trim();
 }

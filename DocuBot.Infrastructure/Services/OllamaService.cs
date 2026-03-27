@@ -21,7 +21,9 @@ namespace DocuBot.Infrastructure.Services
 
         public async Task<string> GenerateCommitMessageAsync(string diff)
         {
-            var prompt = $"Respond with ONLY the git commit message. No explanation. No quotes.\n\n{diff}";
+            var prompt = "Generate a detailed multi-line git commit message using Conventional Commits format. " +
+                         "Start with a subject line (type: short description), followed by a blank line and a detailed body explaining the changes.\n\n" +
+                         $"Respond with ONLY the git commit message. No explanation. No quotes.\n\n{diff}";
             return await GenerateOllamaResponseAsync(prompt);
         }
 

@@ -48,7 +48,9 @@ namespace DocuBot.Infrastructure.Services
 
         public Task<string> GenerateCommitMessageAsync(string diff)
         {
-            var prompt = $"Generate a concise commit message for the following diff:\n{diff}";
+            var prompt = "Generate a detailed multi-line git commit message using Conventional Commits format. " +
+                         "Start with a subject line (type: short description), followed by a blank line and a detailed body explaining the changes. " +
+                         $"Respond with ONLY the commit message for the following diff:\n{diff}";
             return SendPromptAsync(prompt);
         }
 
