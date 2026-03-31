@@ -102,9 +102,6 @@ bool isAiSuggested = commitMsg.StartsWith("[AI] ", StringComparison.OrdinalIgnor
 
 if (isAiSuggested)
 {
-    Console.WriteLine("✅ Developer used the AI-suggested commit message. Bypassing semantic validation.");
-    
-    // Remove prefix before committing
     commitMsg = commitMsg.Substring(5).Trim();
 }
 /*
@@ -122,7 +119,6 @@ else
         await SuggestAndExitAsync();
     }
 
-    Console.WriteLine("🤖 Validating commit message semantics with AI...");
     bool isSemanticallyValid = await aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
     
     if (!isSemanticallyValid)
@@ -145,13 +141,11 @@ try
     {
         // Standalone mode: we need to trigger the git commit ourselves.
         var result = gitService.CommitStagedFiles(commitMsg);
-        Console.WriteLine($"\n✅ Commit successful: {result}");
         Environment.Exit(0);
     }
 }
 catch (Exception ex)
 {
-    Console.WriteLine("❌ Commit failed.");
     Console.WriteLine(ex.Message);
     Environment.Exit(1);
 }
@@ -168,10 +162,8 @@ async Task SuggestAndExitAsync()
             suggestedCommitMsg = aiResponse.Trim();
         }
 
-        Console.WriteLine("\n💡 Suggested commit message (Copy and paste including [AI]):");
         Console.WriteLine($"[AI] {suggestedCommitMsg}");
 
-        // ❗ STOP execution here (DO NOT COMMIT)
         Environment.Exit(1);
     }
     catch (Exception ex)
