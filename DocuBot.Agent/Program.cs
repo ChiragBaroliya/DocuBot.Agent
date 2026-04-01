@@ -115,7 +115,6 @@ else
 {
     if (!validator.ValidateCommitMessage(commitMsg))
     {
-        Console.WriteLine("\n❌ Invalid commit message format.");
         await SuggestAndExitAsync();
     }
 
