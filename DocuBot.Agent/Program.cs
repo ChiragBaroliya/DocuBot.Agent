@@ -42,8 +42,6 @@ string branch = gitService.GetCurrentBranch();
 string stagedDiff = gitService.GetStagedDiff();
 string commitMsg = string.Empty;
 
-Console.WriteLine($"Current branch: {branch}");
-
 // ✅ Branch validation
 var ignoredBranches = new[] { "master", "main", "develop" };
 if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch))
@@ -98,19 +96,26 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
 }
 */
 
-bool isAiSuggested = commitMsg.StartsWith("[AI] ", StringComparison.OrdinalIgnoreCase);
+
+// Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
+bool isAiSuggested = false;
+if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
+{
+    // Remove [AI], [AI] , [AI]:, [AI] :, etc. prefix
+    var aiPrefix = "[AI]";
+    commitMsg = commitMsg.Substring(aiPrefix.Length).TrimStart();
+    if (commitMsg.StartsWith(":"))
+    {
+        commitMsg = commitMsg.Substring(1).TrimStart();
+    }
+    isAiSuggested = true;
+}
+
 
 if (isAiSuggested)
 {
-    commitMsg = commitMsg.Substring(5).Trim();
+    // Accept AI-suggested commit message as valid, skip further validation and suggestion
 }
-/*
-else if (skipReview)
-{
-    Console.WriteLine("⚠️ Code review bypassed by [SKIP REVIEW] prefix.");
-    commitMsg = commitMsg.Replace("[SKIP REVIEW]", "", StringComparison.OrdinalIgnoreCase).Trim();
-}
-*/
 else
 {
     if (!validator.ValidateCommitMessage(commitMsg))
@@ -119,7 +124,7 @@ else
     }
 
     bool isSemanticallyValid = await aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
-    
+
     if (!isSemanticallyValid)
     {
         Console.WriteLine("\n❌ Commit message does not accurately describe the changes.");
