@@ -1,4 +1,4 @@
-namespace DocuBot.Infrastructure.Services
+namespace DocuBot.Application.Interfaces
 {
     using System.Threading.Tasks;
     public interface IAiModelService

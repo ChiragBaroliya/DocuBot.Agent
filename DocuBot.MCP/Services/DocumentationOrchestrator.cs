@@ -1,9 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using DocuBot.Infrastructure.Services;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using DocuBot.Infrastructure.Services;
+using DocuBot.Application.Interfaces;
 
 namespace DocuBot.MCP.Services
 {

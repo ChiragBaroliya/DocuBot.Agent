@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DocuBot.Application.Interfaces;
 
 namespace DocuBot.Infrastructure.Services
 {
@@ -125,11 +126,41 @@ namespace DocuBot.Infrastructure.Services
 
         public async Task<string> GenerateDocumentationAsync(string codeOrComments)
         {
-            string prompt = $"Generate documentation comments for the following code or comments:\n{codeOrComments}";
-            string model = _model;
-            var responseJson = await GetResponseAsync(model, prompt);
-            return ExtractTextFromResponse(responseJson);
-        }
+            string prompt = $@"
+You are a senior software analyst.
+Given the following C# code, generate a clear, business-oriented functional documentation section for it.
+
+For a class, include:
+- Feature Name
+- Purpose (what business or user problem does it solve)
+- Actors (who uses it)
+- Preconditions (what must be true before using it)
+- User Flow (step-by-step, what happens)
+- Business Rules (any constraints or logic)
+- Validations (input checks)
+- Error Handling (how errors are handled)
+- Notifications (emails, messages, etc.)
+- Admin Features (if any)
+- Expected Output (what is produced or changed)
+
+For a method, include:
+- Purpose
+- Parameters and their meaning
+- Preconditions
+- Step-by-step logic
+- Business rules
+- Validations
+- Error handling
+- Output
+
+Respond in Markdown format.
+Here is the code:
+{codeOrComments}
+";
+    string model = _model;
+    var responseJson = await GetResponseAsync(model, prompt);
+    return ExtractTextFromResponse(responseJson);
+}
 
         public async Task<string> GenerateCodeReviewAsync(string diff)
         {

@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DocuBot.AI.Interfaces;
-using DocuBot.Infrastructure.Services;
-using DocuBot.Agent.Services;
+using DocuBot.Application.Interfaces;
 
 namespace DocuBot.Agent.Services
 {

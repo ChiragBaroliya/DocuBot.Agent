@@ -24,6 +24,13 @@ namespace DocuBot.Infrastructure.Services
 
         public string GetCurrentBranch()
         {
+            // Azure DevOps pipeline branch name
+            var branch = Environment.GetEnvironmentVariable("BUILD_SOURCEBRANCHNAME");
+
+            if (!string.IsNullOrWhiteSpace(branch))
+                return branch;
+
+            // Local fallback
             return RunGitCommand("git rev-parse --abbrev-ref HEAD").Trim();
         }
 

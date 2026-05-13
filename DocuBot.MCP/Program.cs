@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using DocuBot.Infrastructure.Services;
 using Microsoft.Extensions.Hosting;
 using DocuBot.MCP.Services;
-using DocuBot.Infrastructure.Services;
-using DocuBot.Infrastructure.Services;
+using DocuBot.Application.Interfaces;
+
 
 var builder = WebApplication.CreateBuilder(args);
 

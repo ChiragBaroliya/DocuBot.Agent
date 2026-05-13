@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DocuBot.Application.Interfaces;
 
 namespace DocuBot.Infrastructure.Services
 {
