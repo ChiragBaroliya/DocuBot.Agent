@@ -23,9 +23,7 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton<IAiModelService>(sp =>
 {
-    var httpClient = sp.GetRequiredService<HttpClient>();
-    var apiKey = Environment.GetEnvironmentVariable("GROQAI_API_KEY");
-    return new GroqAIService(httpClient, apiKey ?? string.Empty);
+    return new AmazonBedrockService();
 });
 
 builder.Services.AddSingleton<IGitService, GitExecutor>();
