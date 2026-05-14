@@ -20,6 +20,11 @@ namespace DocuBot.Infrastructure.Services
             _logger = logger;
         }
 
+        public async Task<string> GetResponseAsync(string model, string input)
+        {
+            return await GenerateOllamaResponseAsync(input, model);
+        }
+
         public async Task<string> GenerateCommitMessageAsync(string diff)
         {
             var prompt = "Generate a detailed multi-line git commit message using Conventional Commits format. " +
@@ -63,11 +68,11 @@ namespace DocuBot.Infrastructure.Services
             return await GenerateOllamaResponseAsync(prompt);
         }
 
-        private async Task<string> GenerateOllamaResponseAsync(string prompt)
+        private async Task<string> GenerateOllamaResponseAsync(string prompt, string model = "llama3:8b")
         {
             var requestBody = new
             {
-                model = "llama3:8b",
+                model = model,
                 prompt = prompt,
                 stream = false
             };

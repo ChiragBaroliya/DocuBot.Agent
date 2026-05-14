@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using DocuBot.Application.Interfaces;
@@ -9,6 +10,11 @@ namespace DocuBot.Infrastructure.Services
     public class SecretsManagerService : ISecretsManagerService
     {
         private readonly AmazonSecretsManagerClient _client;
+
+        public SecretsManagerService(AWSCredentials credentials, Amazon.RegionEndpoint region)
+        {
+            _client = new AmazonSecretsManagerClient(credentials, region);
+        }
 
         public SecretsManagerService()
         {

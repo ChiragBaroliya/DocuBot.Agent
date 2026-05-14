@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Amazon;
+using Amazon.Runtime;
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
 using DocuBot.Application.Interfaces;
@@ -15,23 +17,26 @@ namespace DocuBot.Infrastructure.Services
         private readonly IAmazonBedrockRuntime _client;
         private readonly string _defaultModelId;
 
+        public AmazonBedrockService(AWSCredentials credentials, RegionEndpoint region)
+        {
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-2-3b-instruct-v1:0";
+            _client = new AmazonBedrockRuntimeClient(credentials, region);
+        }
+
         public AmazonBedrockService()
         {
-            // Defaulting to the model specified by the user
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-3-70b-instruct-v1:0";
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "us.meta.llama3-3-70b-instruct-v1:0";
             
             var credentials = AwsCredentialProvider.GetCredentials();
             var region = AwsCredentialProvider.GetRegion();
             
-            _client = credentials != null 
-                ? new AmazonBedrockRuntimeClient(credentials, region)
-                : new AmazonBedrockRuntimeClient(region);
+            _client = new AmazonBedrockRuntimeClient(credentials, region);
         }
 
         public AmazonBedrockService(IAmazonBedrockRuntime client)
         {
             _client = client;
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-3-70b-instruct-v1:0";
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "us.meta.llama3-3-70b-instruct-v1:0";
         }
 
         public async Task<string> GetResponseAsync(string model, string input)

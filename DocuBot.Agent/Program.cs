@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using DotNetEnv;
 using System.Dynamic;
+using Amazon.Runtime;
 
 Env.TraversePath().Load();
 
@@ -19,12 +20,16 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
 
+var credentialService = new AwsCredentialService();
+var awsCredentials = await credentialService.GetCredentialsAsync();
+var awsRegion = AwsCredentialProvider.GetRegion();
+
 builder.Services.AddSingleton<IAiModelService>(sp =>
 {
-    return new AmazonBedrockService();
+    return new AmazonBedrockService(awsCredentials, awsRegion);
 });
 
-builder.Services.AddSingleton<ISecretsManagerService, SecretsManagerService>();
+builder.Services.AddSingleton<ISecretsManagerService>(sp => new SecretsManagerService(awsCredentials, awsRegion));
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -33,6 +38,34 @@ builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent
 builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
 
 var app = builder.Build();
+
+// --- AWS Connection Self-Test ---
+//Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
+//var ai = app.Services.GetRequiredService<IAiModelService>();
+//var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
+
+//Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development"}");
+//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
+
+//try
+//{
+//    Console.WriteLine("📡 Testing Amazon Bedrock...");
+//    var testResult = await ai.GetResponseAsync("us.meta.llama3-1-8b-instruct-v1:0", "Say 'AWS Bedrock Connection Successful'");
+//    if (testResult.Contains("[AmazonBedrockService Error]"))
+//    {
+//        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
+//    }
+//    else
+//    {
+//        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
+//    }
+//}
+//catch (Exception ex)
+//{
+//    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
+//}
+
+//if (!args.Contains("--continue")) Environment.Exit(0);
 
 // Optional: Load additional secrets from AWS Secrets Manager if a secret name is provided
 var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
@@ -72,12 +105,9 @@ if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName
 // Read commit message from file (if provided) or directly from args
 string commitMsgInput = args.Length > 0 ? args[0] : "";
 
-bool isHookMode = false;
-
 if (!string.IsNullOrEmpty(commitMsgInput) && File.Exists(commitMsgInput))
 {
     commitMsg = File.ReadAllText(commitMsgInput).Trim();
-    isHookMode = true;
 }
 else if (!string.IsNullOrEmpty(commitMsgInput))
 {

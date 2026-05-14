@@ -47,6 +47,11 @@ namespace DocuBot.Infrastructure.Services
             return text ?? string.Empty;
         }
 
+        public Task<string> GetResponseAsync(string model, string input)
+        {
+            return SendPromptAsync(input);
+        }
+
         public Task<string> GenerateCommitMessageAsync(string diff)
         {
             var prompt = "Generate a detailed multi-line git commit message using Conventional Commits format. " +
