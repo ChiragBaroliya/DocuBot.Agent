@@ -8,8 +8,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using DotNetEnv;
 using System.Dynamic;
-using DocuBot.AI.Interfaces;
-using DocuBot.AI.Services;
 
 Env.TraversePath().Load();
 
@@ -30,7 +28,6 @@ builder.Services.AddSingleton<ISecretsManagerService, SecretsManagerService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
-builder.Services.AddScoped<IFunctionalDocGenerator, FunctionalDocGenerator>();
 
 builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent.Services.McpService>();
 builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
@@ -42,7 +39,7 @@ var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
 if (!string.IsNullOrEmpty(awsSecretName))
 {
     var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
-    try 
+    try
     {
         Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
         var secretJson = await secretsService.GetSecretAsync(awsSecretName);
@@ -62,38 +59,32 @@ var aiService = app.Services.GetRequiredService<IAiModelService>();
 string branch = gitService.GetCurrentBranch();
 string stagedDiff = gitService.GetStagedDiff();
 string commitMsg = string.Empty;
-//bool isCi = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"))
-//    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("BUILD_BUILDID"))
-//    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("BUILD_SOURCEBRANCHNAME"));
 
-//if (!isCi)
-//{
+// ✅ Branch validation
+var ignoredBranches = new[] { "master", "main", "develop" };
+if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch.ToLower()))
+{
+    Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
+    Console.WriteLine($"Current branch: {branch}");
+    Environment.Exit(1);
+}
 
-    // ✅ Branch validation
-    var ignoredBranches = new[] { "master", "main", "develop" };
-    if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch.ToLower()))
-    {
-        Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
-        Console.WriteLine($"Current branch: {branch}");
-        Environment.Exit(1);
-    }
+// Read commit message from file (if provided) or directly from args
+string commitMsgInput = args.Length > 0 ? args[0] : "";
 
-    // Read commit message from file (if provided) or directly from args
-    string commitMsgInput = args.Length > 0 ? args[0] : "";
+bool isHookMode = false;
 
-    bool isHookMode = false;
+if (!string.IsNullOrEmpty(commitMsgInput) && File.Exists(commitMsgInput))
+{
+    commitMsg = File.ReadAllText(commitMsgInput).Trim();
+    isHookMode = true;
+}
+else if (!string.IsNullOrEmpty(commitMsgInput))
+{
+    commitMsg = commitMsgInput.Trim();
+}
 
-    if (!string.IsNullOrEmpty(commitMsgInput) && File.Exists(commitMsgInput))
-    {
-        commitMsg = File.ReadAllText(commitMsgInput).Trim();
-        isHookMode = true;
-    }
-    else if (!string.IsNullOrEmpty(commitMsgInput))
-    {
-        commitMsg = commitMsgInput.Trim();
-    }
 
-    
 bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIgnoreCase);
 
 if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
@@ -102,9 +93,9 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
     string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
     string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
     File.WriteAllText(reportPath, codeReviewReport);
-    
+
     bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
-    
+
     if (isPassed)
     {
         Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
@@ -117,68 +108,46 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
         Console.WriteLine($"------------------------------------------");
         Console.WriteLine($"Please check {reportPath} for details.");
         Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
-        
+
         await SuggestAndExitAsync();
         Environment.Exit(1);
     }
 }
 
-    // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
-    bool isAiSuggested = false;
-    if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
+// Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
+bool isAiSuggested = false;
+if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
+{
+    // Remove [AI], [AI] , [AI]:, [AI] :, etc. prefix
+    var aiPrefix = "[AI]";
+    commitMsg = commitMsg.Substring(aiPrefix.Length).TrimStart();
+    if (commitMsg.StartsWith(":"))
     {
-        // Remove [AI], [AI] , [AI]:, [AI] :, etc. prefix
-        var aiPrefix = "[AI]";
-        commitMsg = commitMsg.Substring(aiPrefix.Length).TrimStart();
-        if (commitMsg.StartsWith(":"))
-        {
-            commitMsg = commitMsg.Substring(1).TrimStart();
-        }
-        isAiSuggested = true;
+        commitMsg = commitMsg.Substring(1).TrimStart();
+    }
+    isAiSuggested = true;
+}
+
+
+if (isAiSuggested)
+{
+    // Accept AI-suggested commit message as valid, skip further validation and suggestion
+}
+else
+{
+    if (!validator.ValidateCommitMessage(commitMsg))
+    {
+        await SuggestAndExitAsync();
     }
 
+    bool isSemanticallyValid = await aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
 
-    if (isAiSuggested)
+    if (!isSemanticallyValid)
     {
-        // Accept AI-suggested commit message as valid, skip further validation and suggestion
+        Console.WriteLine("\n❌ Commit message does not accurately describe the changes.");
+        await SuggestAndExitAsync();
     }
-    else
-    {
-        if (!validator.ValidateCommitMessage(commitMsg))
-        {
-            await SuggestAndExitAsync();
-        }
-
-        bool isSemanticallyValid = await aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
-
-        if (!isSemanticallyValid)
-        {
-            Console.WriteLine("\n❌ Commit message does not accurately describe the changes.");
-            await SuggestAndExitAsync();
-        }
-    }
-//}
-
-// --- Functional Documentation Generation (before commit is finalized) ---
-//try
-//{
-//    var docGenerator = app.Services.GetRequiredService<IFunctionalDocGenerator>();
-//    // Always generate documentation for the entire codebase and overwrite the master doc
-//    string docContent = await docGenerator.GenerateForCodebaseAsync(Directory.GetCurrentDirectory());
-//    var docsDir = Path.Combine(Directory.GetCurrentDirectory(), "docs");
-//    Directory.CreateDirectory(docsDir);
-//    var docFile = Path.Combine(docsDir, "FunctionalDoc.md");
-//    await File.WriteAllTextAsync(docFile, docContent);
-//    Console.WriteLine($"📄 Master functional documentation updated at: {docFile}");
-       
-//    // Only generate documentation and exit, do not perform any commit logic
-//    Environment.Exit(0);
-//}
-//catch (Exception ex)
-//{
-//    Console.WriteLine(ex.Message);
-//    Environment.Exit(1);
-//}
+}
 
 async Task SuggestAndExitAsync()
 {
@@ -186,8 +155,8 @@ async Task SuggestAndExitAsync()
     {
         string aiResponse = await aiService.GenerateCommitMessageAsync(stagedDiff);
         string suggestedCommitMsg = ExtractValidCommitMessage(aiResponse);
-        
-        if (string.IsNullOrEmpty(suggestedCommitMsg)) 
+
+        if (string.IsNullOrEmpty(suggestedCommitMsg))
         {
             suggestedCommitMsg = aiResponse.Trim();
         }
