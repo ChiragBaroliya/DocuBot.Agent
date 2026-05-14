@@ -12,7 +12,7 @@ namespace DocuBot.Infrastructure.Services
 {
     public class AmazonBedrockService : IAiModelService
     {
-        private readonly AmazonBedrockRuntimeClient _client;
+        private readonly IAmazonBedrockRuntime _client;
         private readonly string _defaultModelId;
 
         public AmazonBedrockService()
@@ -20,9 +20,18 @@ namespace DocuBot.Infrastructure.Services
             // Defaulting to the model specified by the user
             _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-3-70b-instruct-v1:0";
             
-            // The client will use credentials from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, etc.)
-            // or IAM roles if running in AWS. It also looks for AWS_REGION.
-            _client = new AmazonBedrockRuntimeClient();
+            var credentials = AwsCredentialProvider.GetCredentials();
+            var region = AwsCredentialProvider.GetRegion();
+            
+            _client = credentials != null 
+                ? new AmazonBedrockRuntimeClient(credentials, region)
+                : new AmazonBedrockRuntimeClient(region);
+        }
+
+        public AmazonBedrockService(IAmazonBedrockRuntime client)
+        {
+            _client = client;
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-3-70b-instruct-v1:0";
         }
 
         public async Task<string> GetResponseAsync(string model, string input)

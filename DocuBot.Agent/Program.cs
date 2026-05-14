@@ -26,6 +26,7 @@ builder.Services.AddSingleton<IAiModelService>(sp =>
     return new AmazonBedrockService();
 });
 
+builder.Services.AddSingleton<ISecretsManagerService, SecretsManagerService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -35,6 +36,24 @@ builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent
 builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
 
 var app = builder.Build();
+
+// Optional: Load additional secrets from AWS Secrets Manager if a secret name is provided
+var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
+if (!string.IsNullOrEmpty(awsSecretName))
+{
+    var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
+    try 
+    {
+        Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
+        var secretJson = await secretsService.GetSecretAsync(awsSecretName);
+        // Note: You might want to parse this JSON and set environment variables or update IConfiguration
+        // For now, we just acknowledge it's available.
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Warning: Could not load secrets from AWS: {ex.Message}");
+    }
+}
 
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
