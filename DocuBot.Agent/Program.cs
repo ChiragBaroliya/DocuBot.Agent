@@ -10,7 +10,7 @@ using DotNetEnv;
 using System.Dynamic;
 using Amazon.Runtime;
 
-Env.TraversePath().Load();
+Env.Load();
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -68,22 +68,22 @@ var app = builder.Build();
 //if (!args.Contains("--continue")) Environment.Exit(0);
 
 // Optional: Load additional secrets from AWS Secrets Manager if a secret name is provided
-var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
-if (!string.IsNullOrEmpty(awsSecretName))
-{
-    var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
-    try
-    {
-        Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
-        var secretJson = await secretsService.GetSecretAsync(awsSecretName);
-        // Note: You might want to parse this JSON and set environment variables or update IConfiguration
-        // For now, we just acknowledge it's available.
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Warning: Could not load secrets from AWS: {ex.Message}");
-    }
-}
+//var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
+//if (!string.IsNullOrEmpty(awsSecretName))
+//{
+//    var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
+//    try
+//    {
+//        Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
+//        var secretJson = await secretsService.GetSecretAsync(awsSecretName);
+//        // Note: You might want to parse this JSON and set environment variables or update IConfiguration
+//        // For now, we just acknowledge it's available.
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine($"⚠️ Warning: Could not load secrets from AWS: {ex.Message}");
+//    }
+//}
 
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
