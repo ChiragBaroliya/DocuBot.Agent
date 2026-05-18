@@ -10,9 +10,7 @@ using DotNetEnv;
 using System.Dynamic;
 using Amazon.Runtime;
 
-
-// Load .env variables before anything else
-Env.Load();
+Env.TraversePath().Load();
 
 var builder = Host.CreateApplicationBuilder(args);
 
