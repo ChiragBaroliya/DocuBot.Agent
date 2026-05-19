@@ -123,8 +123,40 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
 {
     Console.WriteLine("🤖 Running OWASP Security Review...");
     string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
+    
+    // Save standard Markdown report
     string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
     File.WriteAllText(reportPath, codeReviewReport);
+
+    // Save and open beautiful HTML report in the Downloads folder
+    string htmlReportPath = "";
+    try
+    {
+        string downloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        if (!Directory.Exists(downloadsFolder))
+        {
+            Directory.CreateDirectory(downloadsFolder);
+        }
+        htmlReportPath = Path.Combine(downloadsFolder, "CodeReviewReport.html");
+        
+        string htmlContent = DocuBot.Infrastructure.Services.MarkdownToHtmlConverter.Convert(codeReviewReport);
+        File.WriteAllText(htmlReportPath, htmlContent);
+        
+        Console.WriteLine($"📄 Premium HTML report saved to {htmlReportPath}");
+        
+        // Open the HTML file in the default browser
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = htmlReportPath,
+            UseShellExecute = true
+        };
+        System.Diagnostics.Process.Start(processStartInfo);
+        Console.WriteLine("🌐 Opening report in default browser...");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Could not save or open HTML report: {ex.Message}");
+    }
 
     bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
 
@@ -138,7 +170,7 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
         Console.WriteLine($"--- AI Response (Status check failed) ---");
         Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
         Console.WriteLine($"------------------------------------------");
-        Console.WriteLine($"Please check {reportPath} for details.");
+        Console.WriteLine($"Please check {(string.IsNullOrEmpty(htmlReportPath) ? reportPath : htmlReportPath)} for details.");
         Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
 
         await SuggestAndExitAsync();
