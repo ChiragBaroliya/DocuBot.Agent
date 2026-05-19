@@ -9,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using DotNetEnv;
 using System.Dynamic;
 using Amazon.Runtime;
+using Amazon.SecurityToken.Model;
+using Amazon.SecurityToken;
 
 Env.Load();
 
@@ -40,30 +42,30 @@ builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator,
 var app = builder.Build();
 
 // --- AWS Connection Self-Test ---
-//Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
-//var ai = app.Services.GetRequiredService<IAiModelService>();
-//var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
+Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
+var ai = app.Services.GetRequiredService<IAiModelService>();
+var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
 
-//Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development"}");
-//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
+Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development"}");
+Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
 
-//try
-//{
-//    Console.WriteLine("📡 Testing Amazon Bedrock...");
-//    var testResult = await ai.GetResponseAsync("us.meta.llama3-1-8b-instruct-v1:0", "Say 'AWS Bedrock Connection Successful'");
-//    if (testResult.Contains("[AmazonBedrockService Error]"))
-//    {
-//        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
-//    }
-//    else
-//    {
-//        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
-//    }
-//}
-//catch (Exception ex)
-//{
-//    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
-//}
+try
+{
+    Console.WriteLine("📡 Testing Amazon Bedrock...");
+    var testResult = await ai.GetResponseAsync("anthropic.claude-haiku-4-5-20251001-v1:0", "Say 'AWS Bedrock Connection Successful'");
+    if (testResult.Contains("[AmazonBedrockService Error]"))
+    {
+        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
+    }
+    else
+    {
+        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
+}
 
 //if (!args.Contains("--continue")) Environment.Exit(0);
 
