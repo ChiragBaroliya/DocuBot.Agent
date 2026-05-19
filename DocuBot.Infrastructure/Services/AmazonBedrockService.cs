@@ -16,48 +16,100 @@ namespace DocuBot.Infrastructure.Services
     {
         private readonly IAmazonBedrockRuntime _client;
         private readonly string _defaultModelId;
+        private readonly RegionEndpoint? _region;
 
         public AmazonBedrockService(AWSCredentials credentials, RegionEndpoint region)
         {
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "meta.llama3-2-3b-instruct-v1:0";
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
             _client = new AmazonBedrockRuntimeClient(credentials, region);
+            _region = region;
         }
 
         public AmazonBedrockService()
         {
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "us.meta.llama3-3-70b-instruct-v1:0";
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
             
             var credentials = AwsCredentialProvider.GetCredentials();
-            var region = AwsCredentialProvider.GetRegion();
             
-            _client = new AmazonBedrockRuntimeClient(credentials, region);
+            // Prioritize AWS_REGION environment variable, falling back to "eu-west-1" as per request
+            var regionName = Environment.GetEnvironmentVariable("AWS_REGION") ?? "eu-west-1";
+            _region = RegionEndpoint.GetBySystemName(regionName);
+            
+            _client = new AmazonBedrockRuntimeClient(credentials, _region);
         }
 
         public AmazonBedrockService(IAmazonBedrockRuntime client)
         {
             _client = client;
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "us.meta.llama3-3-70b-instruct-v1:0";
+            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            try
+            {
+                _region = AwsCredentialProvider.GetRegion();
+            }
+            catch
+            {
+                _region = RegionEndpoint.EUWest1;
+            }
         }
 
         public async Task<string> GetResponseAsync(string model, string input)
         {
-            // Llama 3 prompt format for Bedrock
-            // Note: For better results with Llama 3, you might want to wrap the prompt in Llama 3 chat tags:
-            // <|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n
-            
-            var payload = new
+            string resolvedModelId = model;
+            if (_region != null && model.StartsWith("anthropic.", StringComparison.OrdinalIgnoreCase))
             {
-                prompt = input,
-                max_gen_len = 2048,
-                temperature = 0.5,
-                top_p = 0.9
-            };
+                var regionName = _region.SystemName.ToLowerInvariant();
+                string? prefix = null;
+                if (regionName.StartsWith("us-"))
+                    prefix = "us.";
+                else if (regionName.StartsWith("eu-"))
+                    prefix = "eu.";
+                else if (regionName.StartsWith("ap-"))
+                    prefix = "ap.";
+
+                if (prefix != null)
+                {
+                    resolvedModelId = $"{prefix}{model}";
+                }
+            }
+
+            object payload;
+            if (resolvedModelId.Contains("anthropic", StringComparison.OrdinalIgnoreCase) || resolvedModelId.Contains("claude", StringComparison.OrdinalIgnoreCase))
+            {
+                payload = new
+                {
+                    anthropic_version = "bedrock-2023-05-31",
+                    max_tokens = 2048,
+                    temperature = 0.5,
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = new[]
+                            {
+                                new { type = "text", text = input }
+                            }
+                        }
+                    }
+                };
+            }
+            else
+            {
+                // Llama 3 prompt format for Bedrock
+                payload = new
+                {
+                    prompt = input,
+                    max_gen_len = 2048,
+                    temperature = 0.5,
+                    top_p = 0.9
+                };
+            }
 
             var requestJson = JsonSerializer.Serialize(payload);
             
             var request = new InvokeModelRequest
             {
-                ModelId = model,
+                ModelId = resolvedModelId,
                 Body = new MemoryStream(Encoding.UTF8.GetBytes(requestJson)),
                 ContentType = "application/json"
             };
@@ -182,6 +234,16 @@ Here is the code:
                 if (doc.RootElement.TryGetProperty("generation", out var generationProp))
                 {
                     return generationProp.GetString() ?? string.Empty;
+                }
+                
+                // Bedrock Anthropic Claude response format
+                if (doc.RootElement.TryGetProperty("content", out var contentProp) && contentProp.ValueKind == JsonValueKind.Array)
+                {
+                    var textSegments = contentProp.EnumerateArray()
+                        .Select(el => el.TryGetProperty("text", out var textProp) ? textProp.GetString() : null)
+                        .Where(t => t != null);
+                    
+                    return string.Join("", textSegments);
                 }
                 
                 // Generic fallback for other models or if format changes

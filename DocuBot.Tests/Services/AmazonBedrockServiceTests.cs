@@ -55,6 +55,47 @@ namespace DocuBot.Tests.Services
         }
 
         [Fact]
+        public async Task GetResponseAsync_ShouldHandleClaudeModel_WhenResponseIsSuccessful()
+        {
+            // Arrange
+            var modelId = "anthropic.claude-haiku-4-5-20251001-v1:0";
+            var input = "Hello Claude!";
+            var expectedOutput = "Hello! I am Claude 4.5 Haiku.";
+            
+            var responsePayload = new
+            {
+                content = new[]
+                {
+                    new { type = "text", text = expectedOutput }
+                }
+            };
+            
+            var responseJson = JsonSerializer.Serialize(responsePayload);
+            var responseStream = new MemoryStream(Encoding.UTF8.GetBytes(responseJson));
+            
+            var response = new InvokeModelResponse
+            {
+                Body = responseStream,
+                HttpStatusCode = System.Net.HttpStatusCode.OK
+            };
+
+            _mockBedrockClient
+                .Setup(c => c.InvokeModelAsync(It.IsAny<InvokeModelRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _service.GetResponseAsync(modelId, input);
+
+            // Assert
+            Assert.Equal(expectedOutput, result);
+            _mockBedrockClient.Verify(c => c.InvokeModelAsync(
+                It.Is<InvokeModelRequest>(r => 
+                    r.ModelId.EndsWith(modelId) && 
+                    Encoding.UTF8.GetString(r.Body.ToArray()).Contains("anthropic_version")),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
         public async Task GetResponseAsync_ShouldReturnErrorMessage_WhenExceptionOccurs()
         {
             // Arrange
