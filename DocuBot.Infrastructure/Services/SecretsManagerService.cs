@@ -4,6 +4,7 @@ using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using DocuBot.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace DocuBot.Infrastructure.Services
 {
@@ -16,10 +17,10 @@ namespace DocuBot.Infrastructure.Services
             _client = new AmazonSecretsManagerClient(credentials, region);
         }
 
-        public SecretsManagerService()
+        public SecretsManagerService(IConfiguration configuration)
         {
-            var credentials = AwsCredentialProvider.GetCredentials();
-            var region = AwsCredentialProvider.GetRegion();
+            var credentials = AwsCredentialProvider.GetCredentials(configuration);
+            var region = AwsCredentialProvider.GetRegion(configuration);
             _client = new AmazonSecretsManagerClient(credentials, region);
         }
 

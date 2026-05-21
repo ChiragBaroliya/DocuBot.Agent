@@ -9,6 +9,7 @@ using Amazon.Runtime;
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
 using DocuBot.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace DocuBot.Infrastructure.Services
 {
@@ -18,33 +19,32 @@ namespace DocuBot.Infrastructure.Services
         private readonly string _defaultModelId;
         private readonly RegionEndpoint? _region;
 
-        public AmazonBedrockService(AWSCredentials credentials, RegionEndpoint region)
+        public AmazonBedrockService(AWSCredentials credentials, RegionEndpoint region, IConfiguration configuration)
         {
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
             _client = new AmazonBedrockRuntimeClient(credentials, region);
             _region = region;
         }
 
-        public AmazonBedrockService()
+        public AmazonBedrockService(IConfiguration configuration)
         {
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
-            
-            var credentials = AwsCredentialProvider.GetCredentials();
-            
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            var credentials = FallbackCredentialsFactory.GetCredentials();
+
             // Prioritize AWS_REGION environment variable, falling back to "eu-west-1" as per request
-            var regionName = Environment.GetEnvironmentVariable("AWS_REGION") ?? "eu-west-1";
+            var regionName = configuration["AWS:Region"] ?? "eu-west-1";
             _region = RegionEndpoint.GetBySystemName(regionName);
-            
+
             _client = new AmazonBedrockRuntimeClient(credentials, _region);
         }
 
-        public AmazonBedrockService(IAmazonBedrockRuntime client)
+        public AmazonBedrockService(IAmazonBedrockRuntime client, IConfiguration configuration)
         {
             _client = client;
-            _defaultModelId = Environment.GetEnvironmentVariable("AWS_BEDROCK_MODEL_ID") ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
             try
             {
-                _region = AwsCredentialProvider.GetRegion();
+                _region = AwsCredentialProvider.GetRegion(configuration);
             }
             catch
             {

@@ -6,6 +6,7 @@ using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Amazon.SecurityToken;
 using Amazon.SecurityToken.Model;
+using Microsoft.Extensions.Configuration;
 
 namespace DocuBot.Infrastructure.Services
 {
@@ -20,20 +21,21 @@ namespace DocuBot.Infrastructure.Services
         private readonly string _profileName;
         private readonly RegionEndpoint _region;
 
-        public AwsCredentialService()
+        public AwsCredentialService(IConfiguration configuration)
         {
-            _environment = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development";
-            _roleArn = Environment.GetEnvironmentVariable("AWS_ROLE_ARN");
-            _profileName = Environment.GetEnvironmentVariable("AWS_PROFILE");
-            
-            var regionName = Environment.GetEnvironmentVariable("AWS_REGION") ?? "eu-central-1";
+            _environment = configuration["Environment"] ?? "Development";
+            var awsSection = configuration.GetSection("AWS");
+            _profileName = awsSection["Profile"] ?? string.Empty;
+            _roleArn = awsSection["RoleArn"] ?? string.Empty;
+            var regionName = awsSection["Region"] ?? "eu-central-1";
             _region = RegionEndpoint.GetBySystemName(regionName);
         }
+
 
         public async Task<AWSCredentials> GetCredentialsAsync(CancellationToken cancellationToken = default)
         {
             bool isProduction = _environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
-            
+
             // If no Role ARN is provided, return base credentials
             if (string.IsNullOrEmpty(_roleArn) || !isProduction)
             {
@@ -46,7 +48,7 @@ namespace DocuBot.Infrastructure.Services
         private async Task<AWSCredentials> AssumeRoleAsync(bool isProduction, CancellationToken cancellationToken = default)
         {
             using var stsClient = GetAmazonSecurityTokenService(isProduction);
-            
+
             var assumeRoleRequest = new AssumeRoleRequest
             {
                 RoleArn = _roleArn,
@@ -84,27 +86,15 @@ namespace DocuBot.Infrastructure.Services
             }
         }
 
-        private AWSCredentials GetBaseCredentials(bool isProduction)
+        internal AWSCredentials GetBaseCredentials(bool isProduction)
         {
             if (isProduction)
             {
+                // Use default credential chain (e.g., IAM role on EC2, ECS, etc.)
                 return FallbackCredentialsFactory.GetCredentials();
             }
 
-            // 1. Try explicitly provided keys in .env
-            var accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
-            var secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
-            var sessionToken = Environment.GetEnvironmentVariable("AWS_SESSION_TOKEN");
-
-            if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
-            {
-                if (!string.IsNullOrEmpty(sessionToken))
-                    return new SessionAWSCredentials(accessKey, secretKey, sessionToken);
-                
-                return new BasicAWSCredentials(accessKey, secretKey);
-            }
-
-            // 2. Try AWS Profile (SSO/Local)
+            // Always use AWS Profile for development (SSO or local profile)
             if (!string.IsNullOrEmpty(_profileName))
             {
                 var chain = new CredentialProfileStoreChain();
@@ -114,7 +104,7 @@ namespace DocuBot.Infrastructure.Services
                 }
             }
 
-            // 3. Fallback to default chain
+            // Fallback to default chain if profile not found
             return FallbackCredentialsFactory.GetCredentials();
         }
     }
@@ -125,28 +115,24 @@ namespace DocuBot.Infrastructure.Services
     /// </summary>
     public static class AwsCredentialProvider
     {
-        public static AWSCredentials GetCredentials()
+        public static AWSCredentials GetCredentials(IConfiguration configuration)
         {
-            // For sync calls, we use a specialized version or run async task synchronously
-            // However, the best practice is to use AssumeRoleAWSCredentials for automatic refreshing
-            var environment = Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development";
-            var roleArn = Environment.GetEnvironmentVariable("AWS_ROLE_ARN");
-            
-            var service = new AwsCredentialService();
-            var baseCredentials = (service as dynamic).GetBaseCredentials(environment.Equals("Production", StringComparison.OrdinalIgnoreCase)) as AWSCredentials;
-
-            if (!string.IsNullOrEmpty(roleArn))
-            {
-                // Use the SDK's automatic refreshing AssumeRole credentials
-                return new AssumeRoleAWSCredentials(baseCredentials, roleArn, "DocuBotAgentSession");
-            }
-
-            return baseCredentials;
+        var service = new AwsCredentialService(configuration);
+        var isProduction = (configuration["Environment"] ?? "Development").Equals("Production", StringComparison.OrdinalIgnoreCase);
+        var baseCredentials = service.GetBaseCredentials(isProduction);
+        var roleArn = configuration["AWS:RoleArn"];
+        if (!string.IsNullOrEmpty(roleArn) && isProduction)
+        {
+            return new AssumeRoleAWSCredentials(baseCredentials, roleArn, "DocuBotAgentSession");
+        }
+        return baseCredentials;
         }
 
-        public static RegionEndpoint GetRegion()
+
+
+        public static RegionEndpoint GetRegion(IConfiguration configuration)
         {
-            var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "eu-central-1";
+            var region = configuration["AWS:Region"] ?? "eu-central-1";
             return RegionEndpoint.GetBySystemName(region);
         }
     }

@@ -24,13 +24,13 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
 
-var credentialService = new AwsCredentialService();
+var credentialService = new AwsCredentialService(builder.Configuration);
 var awsCredentials = await credentialService.GetCredentialsAsync();
-var awsRegion = AwsCredentialProvider.GetRegion();
+var awsRegion = AwsCredentialProvider.GetRegion(builder.Configuration);
 
 builder.Services.AddSingleton<IAiModelService>(sp =>
 {
-    return new AmazonBedrockService(awsCredentials, awsRegion);
+    return new AmazonBedrockService(awsCredentials, awsRegion, builder.Configuration);
 });
 
 builder.Services.AddSingleton<ISecretsManagerService>(sp => new SecretsManagerService(awsCredentials, awsRegion));
@@ -49,7 +49,7 @@ var app = builder.Build();
 //var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
 
 //Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? ""}");
-//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
+//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion(builder.Configuration).SystemName}");
 
 //try
 //{
