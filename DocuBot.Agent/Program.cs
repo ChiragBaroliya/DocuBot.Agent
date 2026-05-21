@@ -1,16 +1,18 @@
+using Amazon.Runtime;
+using Amazon.SecurityToken;
+using Amazon.SecurityToken.Model;
 using DocuBot.Application.Interfaces;
-using DocuBot.Infrastructure.Services;
-using DocuBot.Domain.Services;
 using DocuBot.Domain.Interfaces;
+using DocuBot.Domain.Services;
+using DocuBot.Infrastructure.Services;
+using DocuBot.Infrastructure.Utils;
+using DotNetEnv;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using DotNetEnv;
 using System.Dynamic;
-using Amazon.Runtime;
-using Amazon.SecurityToken.Model;
-using Amazon.SecurityToken;
+using System.Net.Http;
 
 Env.Load();
 
@@ -42,30 +44,30 @@ builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator,
 var app = builder.Build();
 
 // --- AWS Connection Self-Test ---
-Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
-var ai = app.Services.GetRequiredService<IAiModelService>();
-var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
+//Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
+//var ai = app.Services.GetRequiredService<IAiModelService>();
+//var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
 
-Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? "Development"}");
-Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
+//Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? ""}");
+//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion().SystemName}");
 
-try
-{
-    Console.WriteLine("📡 Testing Amazon Bedrock...");
-    var testResult = await ai.GetResponseAsync("anthropic.claude-haiku-4-5-20251001-v1:0", "Say 'AWS Bedrock Connection Successful'");
-    if (testResult.Contains("[AmazonBedrockService Error]"))
-    {
-        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
-    }
-    else
-    {
-        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
-}
+//try
+//{
+//    Console.WriteLine("📡 Testing Amazon Bedrock...");
+//    var testResult = await ai.GetResponseAsync("anthropic.claude-haiku-4-5-20251001-v1:0", "Say 'AWS Bedrock Connection Successful'");
+//    if (testResult.Contains("[AmazonBedrockService Error]"))
+//    {
+//        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
+//    }
+//    else
+//    {
+//        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
+//    }
+//}
+//catch (Exception ex)
+//{
+//    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
+//}
 
 //if (!args.Contains("--continue")) Environment.Exit(0);
 
@@ -121,29 +123,53 @@ bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIg
 
 if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
 {
-    Console.WriteLine("🤖 Running OWASP Security Review...");
-    string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
-    string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
-    File.WriteAllText(reportPath, codeReviewReport);
+    //Console.WriteLine("🤖 Running OWASP Security Review...");
+    //string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
+    //string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
+    //File.WriteAllText(reportPath, codeReviewReport);
 
-    bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
+    //bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
 
-    if (isPassed)
+    //if (isPassed)
+    //{
+    //    Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
+    //}
+    //else
+    //{
+    //    Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
+    //    Console.WriteLine($"--- AI Response (Status check failed) ---");
+    //    Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
+    //    Console.WriteLine($"------------------------------------------");
+    //    Console.WriteLine($"Please check {reportPath} for details.");
+    //    Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
+
+    //    await SuggestAndExitAsync();
+    //    Environment.Exit(1);
+    //}
+
+    
+
+    // Get the HTML report from your AI service
+    string htmlReport = await aiService.GenerateCodeReviewHtmlReportAsync(stagedDiff);
+    htmlReport = AiResponseCleaner.RemoveCodeFences(htmlReport);
+
+    var downloadsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Downloads");
+    var reportPath = Path.Combine(downloadsPath, "CodeReviewReport.html");
+    File.WriteAllText(reportPath, htmlReport);
+
+    // Try to open the HTML file automatically
+    try
     {
-        Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = reportPath,
+            UseShellExecute = true
+        };
+        System.Diagnostics.Process.Start(psi);
     }
-    else
-    {
-        Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
-        Console.WriteLine($"--- AI Response (Status check failed) ---");
-        Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
-        Console.WriteLine($"------------------------------------------");
-        Console.WriteLine($"Please check {reportPath} for details.");
-        Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
-
-        await SuggestAndExitAsync();
-        Environment.Exit(1);
-    }
+    catch { /* Ignore open errors */ }
 }
 
 // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.

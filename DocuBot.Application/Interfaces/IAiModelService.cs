@@ -9,5 +9,6 @@ namespace DocuBot.Application.Interfaces
         Task<string> GeneratePRDescriptionAsync(string diff);
         Task<string> GenerateDocumentationAsync(string codeOrComments);
         Task<string> GenerateCodeReviewAsync(string diff);
+        Task<string> GenerateCodeReviewHtmlReportAsync(string diff);
     }
 }
