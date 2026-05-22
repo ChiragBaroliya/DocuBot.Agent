@@ -25,11 +25,19 @@ namespace DocuBot.Infrastructure.Services
         {
             _environment = configuration["Environment"] ?? "Development";
             var awsSection = configuration.GetSection("AWS");
-            _profileName = awsSection["Profile"] ?? string.Empty;
-            _roleArn = awsSection["RoleArn"] ?? string.Empty;
-            var regionName = awsSection["Region"] ?? "eu-central-1";
+            _profileName = Environment.GetEnvironmentVariable("AWS_PROFILE") 
+                           ?? awsSection["Profile"] 
+                           ?? string.Empty;
+            _roleArn = Environment.GetEnvironmentVariable("AWS_ROLE_ARN") 
+                       ?? awsSection["RoleArn"] 
+                       ?? string.Empty;
+            var regionName = Environment.GetEnvironmentVariable("AWS_REGION") 
+                             ?? awsSection["Region"] 
+                             ?? "eu-central-1";
             _region = RegionEndpoint.GetBySystemName(regionName);
         }
+
+        public string RoleArn => _roleArn;
 
 
         public async Task<AWSCredentials> GetCredentialsAsync(CancellationToken cancellationToken = default)
@@ -117,22 +125,24 @@ namespace DocuBot.Infrastructure.Services
     {
         public static AWSCredentials GetCredentials(IConfiguration configuration)
         {
-        var service = new AwsCredentialService(configuration);
-        var isProduction = (configuration["Environment"] ?? "Development").Equals("Production", StringComparison.OrdinalIgnoreCase);
-        var baseCredentials = service.GetBaseCredentials(isProduction);
-        var roleArn = configuration["AWS:RoleArn"];
-        if (!string.IsNullOrEmpty(roleArn) && isProduction)
-        {
-            return new AssumeRoleAWSCredentials(baseCredentials, roleArn, "DocuBotAgentSession");
-        }
-        return baseCredentials;
+            var service = new AwsCredentialService(configuration);
+            var isProduction = (configuration["Environment"] ?? "Development").Equals("Production", StringComparison.OrdinalIgnoreCase);
+            var baseCredentials = service.GetBaseCredentials(isProduction);
+            var roleArn = service.RoleArn;
+            if (!string.IsNullOrEmpty(roleArn) && isProduction)
+            {
+                return new AssumeRoleAWSCredentials(baseCredentials, roleArn, "DocuBotAgentSession");
+            }
+            return baseCredentials;
         }
 
 
 
         public static RegionEndpoint GetRegion(IConfiguration configuration)
         {
-            var region = configuration["AWS:Region"] ?? "eu-central-1";
+            var region = Environment.GetEnvironmentVariable("AWS_REGION") 
+                         ?? configuration["AWS:Region"] 
+                         ?? "eu-central-1";
             return RegionEndpoint.GetBySystemName(region);
         }
     }

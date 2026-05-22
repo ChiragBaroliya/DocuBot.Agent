@@ -14,9 +14,21 @@ using Microsoft.Extensions.Logging;
 using System.Dynamic;
 using System.Net.Http;
 
-Env.Load();
+var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
+else
+{
+    Env.Load();
+}
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    ContentRootPath = AppContext.BaseDirectory,
+    Args = args
+});
 
 // Reduce noise logs
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
