@@ -6,7 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
+using Castle.Core.Configuration;
 using DocuBot.Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
 
@@ -20,7 +22,7 @@ namespace DocuBot.Tests.Services
         public AmazonBedrockServiceTests()
         {
             _mockBedrockClient = new Mock<IAmazonBedrockRuntime>();
-            _service = new AmazonBedrockService(_mockBedrockClient.Object);
+            _service = new AmazonBedrockService(_mockBedrockClient.Object, new ConfigurationBuilder().Build());
         }
 
         [Fact]
