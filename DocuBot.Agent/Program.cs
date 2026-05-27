@@ -36,16 +36,7 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
 
-var credentialService = new AwsCredentialService(builder.Configuration);
-var awsCredentials = await credentialService.GetCredentialsAsync();
-var awsRegion = AwsCredentialProvider.GetRegion(builder.Configuration);
-
-builder.Services.AddSingleton<IAiModelService>(sp =>
-{
-    return new AmazonBedrockService(awsCredentials, awsRegion, builder.Configuration);
-});
-
-builder.Services.AddSingleton<ISecretsManagerService>(sp => new SecretsManagerService(awsCredentials, awsRegion));
+builder.Services.AddSingleton<IAiModelService, WebApiAiModelService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -55,51 +46,6 @@ builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator,
 
 var app = builder.Build();
 
-// --- AWS Connection Self-Test ---
-//Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
-//var ai = app.Services.GetRequiredService<IAiModelService>();
-//var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
-
-//Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? ""}");
-//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion(builder.Configuration).SystemName}");
-
-//try
-//{
-//    Console.WriteLine("📡 Testing Amazon Bedrock...");
-//    var testResult = await ai.GetResponseAsync("anthropic.claude-haiku-4-5-20251001-v1:0", "Say 'AWS Bedrock Connection Successful'");
-//    if (testResult.Contains("[AmazonBedrockService Error]"))
-//    {
-//        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
-//    }
-//    else
-//    {
-//        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
-//    }
-//}
-//catch (Exception ex)
-//{
-//    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
-//}
-
-//if (!args.Contains("--continue")) Environment.Exit(0);
-
-// Optional: Load additional secrets from AWS Secrets Manager if a secret name is provided
-//var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
-//if (!string.IsNullOrEmpty(awsSecretName))
-//{
-//    var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
-//    try
-//    {
-//        Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
-//        var secretJson = await secretsService.GetSecretAsync(awsSecretName);
-//        // Note: You might want to parse this JSON and set environment variables or update IConfiguration
-//        // For now, we just acknowledge it's available.
-//    }
-//    catch (Exception ex)
-//    {
-//        Console.WriteLine($"⚠️ Warning: Could not load secrets from AWS: {ex.Message}");
-//    }
-//}
 
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
@@ -135,32 +81,6 @@ bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIg
 
 if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
 {
-    //Console.WriteLine("🤖 Running OWASP Security Review...");
-    //string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
-    //string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
-    //File.WriteAllText(reportPath, codeReviewReport);
-
-    //bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
-
-    //if (isPassed)
-    //{
-    //    Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
-    //}
-    //else
-    //{
-    //    Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
-    //    Console.WriteLine($"--- AI Response (Status check failed) ---");
-    //    Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
-    //    Console.WriteLine($"------------------------------------------");
-    //    Console.WriteLine($"Please check {reportPath} for details.");
-    //    Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
-
-    //    await SuggestAndExitAsync();
-    //    Environment.Exit(1);
-    //}
-
-    
-
     // Get the HTML report from your AI service
     string htmlReport = await aiService.GenerateCodeReviewHtmlReportAsync(stagedDiff);
     htmlReport = AiResponseCleaner.RemoveCodeFences(htmlReport);
