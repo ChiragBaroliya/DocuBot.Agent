@@ -1,6 +1,7 @@
 using Amazon.Runtime;
 using Amazon.SecurityToken;
 using Amazon.SecurityToken.Model;
+using DocuBot.Agent.Services;
 using DocuBot.Application.Interfaces;
 using DocuBot.Domain.Interfaces;
 using DocuBot.Domain.Services;
@@ -183,6 +184,19 @@ if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
     }
     catch { /* Ignore open errors */ }
 }
+
+// create readme file
+var solutionRoot = AppContext.BaseDirectory;
+var rootPath = Directory.GetCurrentDirectory();
+if (solutionRoot.Contains("bin"))
+{
+    solutionRoot = Directory.GetParent(solutionRoot)!.Parent!.Parent!.Parent!.FullName;
+}
+
+string projectSummaries = ProjectSummaryHelper.BuildProjectSummaries(solutionRoot);
+string readmeContent = await aiService
+    .GenerateMasterFunctionalReadmeAsync(projectSummaries);
+File.WriteAllText(Path.Combine(rootPath, "README.md"), readmeContent);
 
 // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
 bool isAiSuggested = false;
