@@ -116,5 +116,10 @@ namespace DocuBot.Infrastructure.Services
             string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
             return SendPromptAsync(prompt);
         }
+
+        public Task<string> GenerateMasterFunctionalReadmeAsync(string projectDescription)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

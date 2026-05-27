@@ -255,5 +255,10 @@ Here is the code:
             }
             return string.Empty;
         }
+
+        public Task<string> GenerateMasterFunctionalReadmeAsync(string projectDescription)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

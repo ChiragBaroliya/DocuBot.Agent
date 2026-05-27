@@ -106,7 +106,7 @@ namespace DocuBot.Infrastructure.Services
             }
 
             var requestJson = JsonSerializer.Serialize(payload);
-            
+
             var request = new InvokeModelRequest
             {
                 ModelId = resolvedModelId,
@@ -117,7 +117,7 @@ namespace DocuBot.Infrastructure.Services
             try
             {
                 var response = await _client.InvokeModelAsync(request);
-                
+
                 using (var reader = new StreamReader(response.Body))
                 {
                     var responseJson = await reader.ReadToEndAsync();
@@ -212,7 +212,7 @@ Here is the code:
 
         public async Task<string> GenerateCodeReviewAsync(string diff)
         {
-            string guidance = 
+            string guidance =
                 "You are an expert security code reviewer focusing on OWASP Top 10 security risks.\n" +
                 "Review the provided git diff for staged files and provide suggestions ONLY for HIGH and CRITICAL severity issues related to OWASP Top 10 (e.g., SQL injection, Sensitive Data Exposure, etc.).\n" +
                 "If there are no HIGH or CRITICAL issues, respond with 'Status: PASS - No high or critical issues found.'\n" +
@@ -247,28 +247,50 @@ Here is the code:
             return await GetResponseAsync(_defaultModelId, prompt);
         }
 
+        /// <summary>
+        /// Generates a master functional README for all detected projects using a single prompt.
+        /// </summary>
+        /// <param name="projectSummaries">A string listing all projects and their main files/folders.</param>
+        /// <returns>AI-generated master functional README content.</returns>
+        public async Task<string> GenerateMasterFunctionalReadmeAsync(string projectSummaries)
+        {
+            string prompt = $@"
+                            Generate a master functional README for this repository. For each project, include:
+                            - About
+                            - Key functionalities
+                            - Dependencies
+                            - How to use
+                            - Error Handling
+
+                            Projects:
+
+                            {projectSummaries}
+                            ";
+            return await GetResponseAsync(_defaultModelId, prompt);
+        }
+
         private string ExtractTextFromResponse(string responseJson)
         {
             try
             {
                 using var doc = JsonDocument.Parse(responseJson);
-                
+
                 // Bedrock Llama 3 response format
                 if (doc.RootElement.TryGetProperty("generation", out var generationProp))
                 {
                     return generationProp.GetString() ?? string.Empty;
                 }
-                
+
                 // Bedrock Anthropic Claude response format
                 if (doc.RootElement.TryGetProperty("content", out var contentProp) && contentProp.ValueKind == JsonValueKind.Array)
                 {
                     var textSegments = contentProp.EnumerateArray()
                         .Select(el => el.TryGetProperty("text", out var textProp) ? textProp.GetString() : null)
                         .Where(t => t != null);
-                    
+
                     return string.Join("", textSegments);
                 }
-                
+
                 // Generic fallback for other models or if format changes
                 return responseJson;
             }

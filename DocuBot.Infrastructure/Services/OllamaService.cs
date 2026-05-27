@@ -125,5 +125,10 @@ namespace DocuBot.Infrastructure.Services
                 return $"ERROR: AI request failed: {ex.Message}";
             }
         }
+
+        public Task<string> GenerateMasterFunctionalReadmeAsync(string projectDescription)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
