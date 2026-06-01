@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DocuBot.Application.Interfaces;
 
 namespace DocuBot.Infrastructure.Services
 {
@@ -46,6 +47,11 @@ namespace DocuBot.Infrastructure.Services
             return text ?? string.Empty;
         }
 
+        public Task<string> GetResponseAsync(string model, string input)
+        {
+            return SendPromptAsync(input);
+        }
+
         public Task<string> GenerateCommitMessageAsync(string diff)
         {
             var prompt = "Generate a detailed multi-line git commit message using Conventional Commits format. " +
@@ -86,6 +92,28 @@ namespace DocuBot.Infrastructure.Services
                          "Otherwise, respond with 'Status: REVIEW_REQUIRED' followed by a detailed markdown list of the violations including the specific OWASP category.\n" +
                          "IMPORTANT: Your response MUST contain either 'Status: PASS' or 'Status: REVIEW_REQUIRED' prominently.\n" +
                          $"Format the output as a Markdown report.\n\nGit Diff:\n{diff}";
+            return SendPromptAsync(prompt);
+        }
+
+        public Task<string> GenerateCodeReviewHtmlReportAsync(string diff)
+        {
+            string guidance =
+                "You are an expert security code reviewer focusing on OWASP Top 10 security risks.\n" +
+                "Review the provided git diff for staged files and provide suggestions ONLY for HIGH and CRITICAL severity issues related to OWASP Top 10 (e.g., SQL injection, Sensitive Data Exposure, etc.).\n" +
+                "If there are no HIGH or CRITICAL issues, respond with a simple HTML paragraph:\n" +
+                "<p>Status: PASS - No high or critical issues found.</p>\n" +
+                "Otherwise, respond with a full HTML report that includes:\n" +
+                "- A prominent status at the top: <p>Status: REVIEW_REQUIRED</p>\n" +
+                "- For each issue, use a <details> section with a <summary> showing the file, line, severity, and OWASP category.\n" +
+                "- Inside each <details>, include a table with columns: Description, Suggestion.\n" +
+                "- If possible, include a syntax-highlighted code snippet using <pre><code class=\"csharp\">...</code></pre>.\n" +
+                "- The HTML must include the following in the <head> for syntax highlighting:\n" +
+                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css\">\n" +
+                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js\"></script>\n" +
+                "  <script>hljs.highlightAll();</script>\n" +
+                "The HTML must be valid and ready to save as a standalone file. Do not include any markdown or explanations outside the HTML.\n";
+
+            string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
             return SendPromptAsync(prompt);
         }
     }

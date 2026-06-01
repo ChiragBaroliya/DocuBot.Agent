@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System;
+using DocuBot.Application.Interfaces;
 
 
 namespace DocuBot.Infrastructure.Services
@@ -17,6 +18,11 @@ namespace DocuBot.Infrastructure.Services
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+        }
+
+        public async Task<string> GetResponseAsync(string model, string input)
+        {
+            return await GenerateOllamaResponseAsync(input, model);
         }
 
         public async Task<string> GenerateCommitMessageAsync(string diff)
@@ -61,12 +67,33 @@ namespace DocuBot.Infrastructure.Services
                          $"Format the output as a Markdown report.\n\nGit Diff:\n{diff}";
             return await GenerateOllamaResponseAsync(prompt);
         }
+        public async Task<string> GenerateCodeReviewHtmlReportAsync(string diff)
+        {
+            string guidance =
+                "You are an expert security code reviewer focusing on OWASP Top 10 security risks.\n" +
+                "Review the provided git diff for staged files and provide suggestions ONLY for HIGH and CRITICAL severity issues related to OWASP Top 10 (e.g., SQL injection, Sensitive Data Exposure, etc.).\n" +
+                "If there are no HIGH or CRITICAL issues, respond with a simple HTML paragraph:\n" +
+                "<p>Status: PASS - No high or critical issues found.</p>\n" +
+                "Otherwise, respond with a full HTML report that includes:\n" +
+                "- A prominent status at the top: <p>Status: REVIEW_REQUIRED</p>\n" +
+                "- For each issue, use a <details> section with a <summary> showing the file, line, severity, and OWASP category.\n" +
+                "- Inside each <details>, include a table with columns: Description, Suggestion.\n" +
+                "- If possible, include a syntax-highlighted code snippet using <pre><code class=\"csharp\">...</code></pre>.\n" +
+                "- The HTML must include the following in the <head> for syntax highlighting:\n" +
+                "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css\">\n" +
+                "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js\"></script>\n" +
+                "  <script>hljs.highlightAll();</script>\n" +
+                "The HTML must be valid and ready to save as a standalone file. Do not include any markdown or explanations outside the HTML.\n";
 
-        private async Task<string> GenerateOllamaResponseAsync(string prompt)
+            string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
+            return await GenerateOllamaResponseAsync(prompt);
+        }
+
+        private async Task<string> GenerateOllamaResponseAsync(string prompt, string model = "llama3:8b")
         {
             var requestBody = new
             {
-                model = "llama3:8b",
+                model = model,
                 prompt = prompt,
                 stream = false
             };

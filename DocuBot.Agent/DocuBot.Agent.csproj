@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,15 +8,29 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DocuBot.AI\DocuBot.AI.csproj" />
     <ProjectReference Include="..\DocuBot.Application\DocuBot.Application.csproj" />
-    <ProjectReference Include="..\DocuBot.CLI\DocuBot.CLI.csproj" />
     <ProjectReference Include="..\DocuBot.Domain\DocuBot.Domain.csproj" />
     <ProjectReference Include="..\\DocuBot.Infrastructure\\DocuBot.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="DotNetEnv" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
+  </ItemGroup>
+
+  <!-- Ensure .env file is copied to output directory -->
+  <ItemGroup>
+    <None Update=".env">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>  

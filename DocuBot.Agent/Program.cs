@@ -1,16 +1,34 @@
+using Amazon.Runtime;
+using Amazon.SecurityToken;
+using Amazon.SecurityToken.Model;
 using DocuBot.Application.Interfaces;
-using DocuBot.Infrastructure.Services;
-using DocuBot.Domain.Services;
 using DocuBot.Domain.Interfaces;
+using DocuBot.Domain.Services;
+using DocuBot.Infrastructure.Services;
+using DocuBot.Infrastructure.Utils;
+using DotNetEnv;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using DotNetEnv;
+using System.Dynamic;
+using System.Net.Http;
 
-Env.TraversePath().Load();
+var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+}
+else
+{
+    Env.Load();
+}
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    ContentRootPath = AppContext.BaseDirectory,
+    Args = args
+});
 
 // Reduce noise logs
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
@@ -18,13 +36,7 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddSingleton<IAiModelService>(sp =>
-{
-    var httpClient = sp.GetRequiredService<HttpClient>();
-    var apiKey = Environment.GetEnvironmentVariable("GROQAI_API_KEY");
-    return new GroqAIService(httpClient, apiKey ?? string.Empty);
-});
-
+builder.Services.AddSingleton<IAiModelService, WebApiAiModelService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
@@ -33,6 +45,7 @@ builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent
 builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
 
 var app = builder.Build();
+
 
 var gitService = app.Services.GetRequiredService<IGitService>();
 var validator = app.Services.GetRequiredService<IGitValidator>();
@@ -44,58 +57,52 @@ string commitMsg = string.Empty;
 
 // ✅ Branch validation
 var ignoredBranches = new[] { "master", "main", "develop" };
-if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch))
+if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch.ToLower()))
 {
     Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
+    Console.WriteLine($"Current branch: {branch}");
     Environment.Exit(1);
 }
 
 // Read commit message from file (if provided) or directly from args
 string commitMsgInput = args.Length > 0 ? args[0] : "";
 
-bool isHookMode = false;
-
 if (!string.IsNullOrEmpty(commitMsgInput) && File.Exists(commitMsgInput))
 {
     commitMsg = File.ReadAllText(commitMsgInput).Trim();
-    isHookMode = true;
 }
 else if (!string.IsNullOrEmpty(commitMsgInput))
 {
     commitMsg = commitMsgInput.Trim();
 }
 
-/*
+
 bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIgnoreCase);
 
 if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
 {
-    Console.WriteLine("🤖 Running OWASP Security Review...");
-    string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
-    string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
-    File.WriteAllText(reportPath, codeReviewReport);
-    
-    bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
-    
-    if (isPassed)
-    {
-        Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
-    }
-    else
-    {
-        Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
-        Console.WriteLine($"--- AI Response (Status check failed) ---");
-        Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
-        Console.WriteLine($"------------------------------------------");
-        Console.WriteLine($"Please check {reportPath} for details.");
-        Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
-        
-        await SuggestAndExitAsync();
-        Environment.Exit(1);
-    }
-}
-*/
+    // Get the HTML report from your AI service
+    string htmlReport = await aiService.GenerateCodeReviewHtmlReportAsync(stagedDiff);
+    htmlReport = AiResponseCleaner.RemoveCodeFences(htmlReport);
 
+    var downloadsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Downloads");
+    var reportPath = Path.Combine(downloadsPath, "CodeReviewReport.html");
+    File.WriteAllText(reportPath, htmlReport);
+
+    // Try to open the HTML file automatically
+    try
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = reportPath,
+            UseShellExecute = true
+        };
+        System.Diagnostics.Process.Start(psi);
+    }
+    catch { /* Ignore open errors */ }
+}
 
 // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
 bool isAiSuggested = false;
@@ -132,36 +139,14 @@ else
     }
 }
 
-// Finalize Commit Processing
-try
-{
-    if (isHookMode)
-    {
-        // Git is already running a commit. We just update the message file and let Git finish.
-        File.WriteAllText(commitMsgInput, commitMsg);
-        Environment.Exit(0);
-    }
-    else
-    {
-        // Standalone mode: we need to trigger the git commit ourselves.
-        var result = gitService.CommitStagedFiles(commitMsg);
-        Environment.Exit(0);
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine(ex.Message);
-    Environment.Exit(1);
-}
-
 async Task SuggestAndExitAsync()
 {
     try
     {
         string aiResponse = await aiService.GenerateCommitMessageAsync(stagedDiff);
         string suggestedCommitMsg = ExtractValidCommitMessage(aiResponse);
-        
-        if (string.IsNullOrEmpty(suggestedCommitMsg)) 
+
+        if (string.IsNullOrEmpty(suggestedCommitMsg))
         {
             suggestedCommitMsg = aiResponse.Trim();
         }

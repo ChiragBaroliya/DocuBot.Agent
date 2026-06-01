@@ -1,0 +1,11 @@
+{
+  "name": "docubot-husky-setup",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "setup-husky": "node setup-husky.js"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0"
+  }
+}

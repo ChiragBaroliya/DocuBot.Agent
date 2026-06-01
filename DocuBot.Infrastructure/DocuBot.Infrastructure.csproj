@@ -1,9 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.17.6" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.4.21" />
+    <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.6.4" />
+    <PackageReference Include="AWSSDK.SSO" Version="4.0.2.30" />
+    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.3.31" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
   </ItemGroup>

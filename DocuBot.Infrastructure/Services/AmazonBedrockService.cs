@@ -1,73 +1,135 @@
 using System;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Amazon;
+using Amazon.Runtime;
+using Amazon.BedrockRuntime;
+using Amazon.BedrockRuntime.Model;
 using DocuBot.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace DocuBot.Infrastructure.Services
 {
-    public class GroqAIService : IAiModelService
+    public class AmazonBedrockService : IAiModelService
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _apiKey;
-        private readonly string _model;
-        private const string GroqApiUrl = "https://api.groq.com/openai/v1/chat/completions";
+        private readonly IAmazonBedrockRuntime _client;
+        private readonly string _defaultModelId;
+        private readonly RegionEndpoint? _region;
 
-        public GroqAIService(HttpClient httpClient, string apiKey)
+        public AmazonBedrockService(AWSCredentials credentials, RegionEndpoint region, IConfiguration configuration)
         {
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            _client = new AmazonBedrockRuntimeClient(credentials, region);
+            _region = region;
+        }
 
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new ArgumentException("Groq API key must be provided and cannot be empty.", nameof(apiKey));
-            
-            _httpClient = httpClient;
-            _apiKey = apiKey;
-            _model = Environment.GetEnvironmentVariable("GROQAI_MODEL") ?? "llama-3.3-70b-versatile";
+        public AmazonBedrockService(IConfiguration configuration)
+        {
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            var credentials = FallbackCredentialsFactory.GetCredentials();
+
+            // Prioritize AWS_REGION environment variable, falling back to "eu-west-1" as per request
+            var regionName = configuration["AWS:Region"] ?? "eu-west-1";
+            _region = RegionEndpoint.GetBySystemName(regionName);
+
+            _client = new AmazonBedrockRuntimeClient(credentials, _region);
+        }
+
+        public AmazonBedrockService(IAmazonBedrockRuntime client, IConfiguration configuration)
+        {
+            _client = client;
+            _defaultModelId = configuration["AWS:BedrockModelId"] ?? "anthropic.claude-haiku-4-5-20251001-v1:0";
+            try
+            {
+                _region = AwsCredentialProvider.GetRegion(configuration);
+            }
+            catch
+            {
+                _region = RegionEndpoint.EUWest1;
+            }
         }
 
         public async Task<string> GetResponseAsync(string model, string input)
         {
-            var requestBody = new
+            string resolvedModelId = model;
+            if (_region != null && model.StartsWith("anthropic.", StringComparison.OrdinalIgnoreCase))
             {
-                model = model,
-                messages = new[]
-                {
-                    new { role = "user", content = input }
-                }
-            };
+                var regionName = _region.SystemName.ToLowerInvariant();
+                string? prefix = null;
+                if (regionName.StartsWith("us-"))
+                    prefix = "us.";
+                else if (regionName.StartsWith("eu-"))
+                    prefix = "eu.";
+                else if (regionName.StartsWith("ap-"))
+                    prefix = "ap.";
 
-            var requestJson = JsonSerializer.Serialize(requestBody);
-            var request = new HttpRequestMessage(HttpMethod.Post, GroqApiUrl)
+                if (prefix != null)
+                {
+                    resolvedModelId = $"{prefix}{model}";
+                }
+            }
+
+            object payload;
+            if (resolvedModelId.Contains("anthropic", StringComparison.OrdinalIgnoreCase) || resolvedModelId.Contains("claude", StringComparison.OrdinalIgnoreCase))
             {
-                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
+                payload = new
+                {
+                    anthropic_version = "bedrock-2023-05-31",
+                    max_tokens = 2048,
+                    temperature = 0.5,
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = new[]
+                            {
+                                new { type = "text", text = input }
+                            }
+                        }
+                    }
+                };
+            }
+            else
+            {
+                // Llama 3 prompt format for Bedrock
+                payload = new
+                {
+                    prompt = input,
+                    max_gen_len = 2048,
+                    temperature = 0.5,
+                    top_p = 0.9
+                };
+            }
+
+            var requestJson = JsonSerializer.Serialize(payload);
+            
+            var request = new InvokeModelRequest
+            {
+                ModelId = resolvedModelId,
+                Body = new MemoryStream(Encoding.UTF8.GetBytes(requestJson)),
+                ContentType = "application/json"
             };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
             try
             {
-                var response = await _httpClient.SendAsync(request);
-                if (!response.IsSuccessStatusCode)
+                var response = await _client.InvokeModelAsync(request);
+                
+                using (var reader = new StreamReader(response.Body))
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                    {
-                        return $"[GroqAIService Error] Unauthorized (401): Check your API key. Response: {errorContent}";
-                    }
-                    return $"[GroqAIService Error] HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {errorContent}";
+                    var responseJson = await reader.ReadToEndAsync();
+                    return ExtractTextFromResponse(responseJson);
                 }
-                var responseContent = await response.Content.ReadAsStringAsync();
-                return responseContent;
-            }
-            catch (HttpRequestException ex)
-            {
-                return $"[GroqAIService Error] HTTP request failed: {ex.Message}";
             }
             catch (Exception ex)
             {
-                return $"[GroqAIService Error] Unexpected error: {ex.Message}";
+                return $"[AmazonBedrockService Error] {ex.Message}";
             }
         }
+
         public async Task<string> GenerateCommitMessageAsync(string diff)
         {
             string guidance =
@@ -88,12 +150,7 @@ namespace DocuBot.Infrastructure.Services
                 "- Do NOT include conversational filler or prefix like 'Here is the message'\n\n";
 
             string prompt = $"{guidance}Git diff:\n{diff}";
-
-            string model = _model;
-
-            var responseJson = await GetResponseAsync(model, prompt);
-
-            return ExtractTextFromResponse(responseJson);
+            return await GetResponseAsync(_defaultModelId, prompt);
         }
 
         public async Task<bool> ValidateCommitMessageAsync(string commitMessage, string diff)
@@ -106,22 +163,15 @@ namespace DocuBot.Infrastructure.Services
                 "IMPORTANT: Return ONLY the word 'true' or 'false', nothing else.";
 
             string prompt = $"{guidance}\n\nCommit Message:\n{commitMessage}\n\nGit Diff:\n{diff}";
-            string model = _model;
 
-            var responseJson = await GetResponseAsync(model, prompt);
-            var responseText = ExtractTextFromResponse(responseJson).Trim().ToLower();
-
-            return responseText == "true";
+            var responseText = (await GetResponseAsync(_defaultModelId, prompt)).Trim().ToLower();
+            return responseText.Contains("true");
         }
-
-
 
         public async Task<string> GeneratePRDescriptionAsync(string diff)
         {
             string prompt = $"Write a detailed pull request description for the following code changes:\n{diff}";
-            string model = _model;
-            var responseJson = await GetResponseAsync(model, prompt);
-            return ExtractTextFromResponse(responseJson);
+            return await GetResponseAsync(_defaultModelId, prompt);
         }
 
         public async Task<string> GenerateDocumentationAsync(string codeOrComments)
@@ -157,10 +207,8 @@ Respond in Markdown format.
 Here is the code:
 {codeOrComments}
 ";
-    string model = _model;
-    var responseJson = await GetResponseAsync(model, prompt);
-    return ExtractTextFromResponse(responseJson);
-}
+            return await GetResponseAsync(_defaultModelId, prompt);
+        }
 
         public async Task<string> GenerateCodeReviewAsync(string diff)
         {
@@ -173,10 +221,7 @@ Here is the code:
                 "Format the output as a Markdown report.\n";
 
             string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
-            string model = _model; 
-
-            var responseJson = await GetResponseAsync(model, prompt);
-            return ExtractTextFromResponse(responseJson);
+            return await GetResponseAsync(_defaultModelId, prompt);
         }
 
         public async Task<string> GenerateCodeReviewHtmlReportAsync(string diff)
@@ -195,11 +240,11 @@ Here is the code:
                 "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css\">\n" +
                 "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js\"></script>\n" +
                 "  <script>hljs.highlightAll();</script>\n" +
-                "The HTML must be valid and ready to save as a standalone file. Do not include any markdown or explanations outside the HTML.\n";
+                "The HTML must be valid and ready to save as a standalone file. Do not include any markdown, triple backticks, code fences, or explanations outside the HTML. Return ONLY the raw HTML, nothing else."
+                ;
 
             string prompt = $"{guidance}\n\nGit Diff:\n{diff}";
-            var responseJson = await GetResponseAsync(_model, prompt);
-            return ExtractTextFromResponse(responseJson);
+            return await GetResponseAsync(_defaultModelId, prompt);
         }
 
         private string ExtractTextFromResponse(string responseJson)
@@ -207,53 +252,30 @@ Here is the code:
             try
             {
                 using var doc = JsonDocument.Parse(responseJson);
-                // Try to extract the first text value from any content array/object in the output array
-                if (doc.RootElement.TryGetProperty("output", out var outputArray) && outputArray.ValueKind == JsonValueKind.Array)
+                
+                // Bedrock Llama 3 response format
+                if (doc.RootElement.TryGetProperty("generation", out var generationProp))
                 {
-                    foreach (var outputItem in outputArray.EnumerateArray())
-                    {
-                        // content can be an array or object
-                        if (outputItem.TryGetProperty("content", out var contentProp))
-                        {
-                            if (contentProp.ValueKind == JsonValueKind.Array)
-                            {
-                                foreach (var contentItem in contentProp.EnumerateArray())
-                                {
-                                    if (contentItem.TryGetProperty("text", out var textProp))
-                                    {
-                                        var text = textProp.GetString();
-                                        if (!string.IsNullOrWhiteSpace(text))
-                                            return text;
-                                    }
-                                }
-                            }
-                            else if (contentProp.ValueKind == JsonValueKind.Object)
-                            {
-                                if (contentProp.TryGetProperty("text", out var textProp))
-                                {
-                                    var text = textProp.GetString();
-                                    if (!string.IsNullOrWhiteSpace(text))
-                                        return text;
-                                }
-                            }
-                        }
-                    }
+                    return generationProp.GetString() ?? string.Empty;
                 }
-                // Fallback to previous Groq format (choices[0].message.content)
-                if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0)
+                
+                // Bedrock Anthropic Claude response format
+                if (doc.RootElement.TryGetProperty("content", out var contentProp) && contentProp.ValueKind == JsonValueKind.Array)
                 {
-                    var choice = choices[0];
-                    if (choice.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content))
-                    {
-                        return content.GetString() ?? string.Empty;
-                    }
+                    var textSegments = contentProp.EnumerateArray()
+                        .Select(el => el.TryGetProperty("text", out var textProp) ? textProp.GetString() : null)
+                        .Where(t => t != null);
+                    
+                    return string.Join("", textSegments);
                 }
+                
+                // Generic fallback for other models or if format changes
+                return responseJson;
             }
             catch (Exception ex)
             {
                 return $"[AI Response Parsing Error]: {ex.Message}\nRaw response: {responseJson}";
             }
-            return string.Empty;
         }
     }
 }
