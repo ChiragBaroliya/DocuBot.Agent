@@ -1,0 +1,19 @@
+{
+  "region": "eu-west-1",
+  "configuration": "Debug",
+  "framework": "net8.0",
+  "self-contained": true,
+  "application": "DocuBotWebApi",
+  "environment": "DocuBotWebApi-dev",
+  "enable-xray": false,
+  "enhanced-health-type": "basic",
+  "additional-options": "",
+  "solution-stack": "64bit Amazon Linux 2 v2.15.3 running .NET Core",
+  "environment-type": "SingleInstance",
+  "cname": "docubotwebapi-dev",
+  "instance-type": "t2.micro",
+  "key-pair": "",
+  "instance-profile": "aws-elasticbeanstalk-ec2-role",
+  "service-role": "aws-elasticbeanstalk-service-role",
+  "proxy-server": "nginx"
+}

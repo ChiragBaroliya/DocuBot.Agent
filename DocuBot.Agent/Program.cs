@@ -1,19 +1,12 @@
-using Amazon.Runtime;
-using Amazon.SecurityToken;
-using Amazon.SecurityToken.Model;
-using DocuBot.Agent.Services;
 using DocuBot.Application.Interfaces;
 using DocuBot.Domain.Interfaces;
 using DocuBot.Domain.Services;
 using DocuBot.Infrastructure.Services;
-using DocuBot.Infrastructure.Utils;
+using DocuBot.Agent.Services;
 using DotNetEnv;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Dynamic;
-using System.Net.Http;
 
 var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
 if (File.Exists(envPath))
@@ -37,250 +30,18 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 
 builder.Services.AddHttpClient();
 
-var credentialService = new AwsCredentialService(builder.Configuration);
-var awsCredentials = await credentialService.GetCredentialsAsync();
-var awsRegion = AwsCredentialProvider.GetRegion(builder.Configuration);
-
-builder.Services.AddSingleton<IAiModelService>(sp =>
-{
-    return new AmazonBedrockService(awsCredentials, awsRegion, builder.Configuration);
-});
-
-builder.Services.AddSingleton<ISecretsManagerService>(sp => new SecretsManagerService(awsCredentials, awsRegion));
+// Core Services
+builder.Services.AddSingleton<IAiModelService, WebApiAiModelService>();
 builder.Services.AddSingleton<IGitService, GitExecutor>();
 builder.Services.AddSingleton<IGitValidator, GitValidator>();
 builder.Services.AddLogging();
 
-builder.Services.AddHttpClient<DocuBot.Agent.Services.IMcpService, DocuBot.Agent.Services.McpService>();
-builder.Services.AddSingleton<DocuBot.Agent.Services.IDocumentationOrchestrator, DocuBot.Agent.Services.DocumentationOrchestrator>();
+// Agent Services
+builder.Services.AddHttpClient<IMcpService, McpService>();
+builder.Services.AddSingleton<IDocumentationOrchestrator, DocumentationOrchestrator>();
+builder.Services.AddSingleton<ICommitWorkflowExecutor, CommitWorkflowExecutor>();
 
 var app = builder.Build();
 
-// --- AWS Connection Self-Test ---
-//Console.WriteLine("🧪 Running AWS Connectivity Self-Test...");
-//var ai = app.Services.GetRequiredService<IAiModelService>();
-//var secrets = app.Services.GetRequiredService<ISecretsManagerService>();
-
-//Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ENVIRONMENT") ?? ""}");
-//Console.WriteLine($"Region: {AwsCredentialProvider.GetRegion(builder.Configuration).SystemName}");
-
-//try
-//{
-//    Console.WriteLine("📡 Testing Amazon Bedrock...");
-//    var testResult = await ai.GetResponseAsync("anthropic.claude-haiku-4-5-20251001-v1:0", "Say 'AWS Bedrock Connection Successful'");
-//    if (testResult.Contains("[AmazonBedrockService Error]"))
-//    {
-//        Console.WriteLine($"❌ Bedrock Test Failed: {testResult}");
-//    }
-//    else
-//    {
-//        Console.WriteLine($"✅ Bedrock Test Successful! Response: {testResult.Trim()}");
-//    }
-//}
-//catch (Exception ex)
-//{
-//    Console.WriteLine($"❌ Bedrock Test Failed with Exception: {ex.Message}");
-//}
-
-//if (!args.Contains("--continue")) Environment.Exit(0);
-
-// Optional: Load additional secrets from AWS Secrets Manager if a secret name is provided
-//var awsSecretName = Environment.GetEnvironmentVariable("AWS_SECRET_NAME");
-//if (!string.IsNullOrEmpty(awsSecretName))
-//{
-//    var secretsService = app.Services.GetRequiredService<ISecretsManagerService>();
-//    try
-//    {
-//        Console.WriteLine($"🔐 Loading configuration from AWS Secrets Manager: {awsSecretName}...");
-//        var secretJson = await secretsService.GetSecretAsync(awsSecretName);
-//        // Note: You might want to parse this JSON and set environment variables or update IConfiguration
-//        // For now, we just acknowledge it's available.
-//    }
-//    catch (Exception ex)
-//    {
-//        Console.WriteLine($"⚠️ Warning: Could not load secrets from AWS: {ex.Message}");
-//    }
-//}
-
-var gitService = app.Services.GetRequiredService<IGitService>();
-var validator = app.Services.GetRequiredService<IGitValidator>();
-var aiService = app.Services.GetRequiredService<IAiModelService>();
-
-string branch = gitService.GetCurrentBranch();
-string stagedDiff = gitService.GetStagedDiff();
-string commitMsg = string.Empty;
-
-// ✅ Branch validation
-var ignoredBranches = new[] { "master", "main", "develop" };
-if (!ignoredBranches.Contains(branch.ToLower()) && !validator.ValidateBranchName(branch.ToLower()))
-{
-    Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
-    Console.WriteLine($"Current branch: {branch}");
-    Environment.Exit(1);
-}
-
-// Read commit message from file (if provided) or directly from args
-string commitMsgInput = args.Length > 0 ? args[0] : "";
-
-if (!string.IsNullOrEmpty(commitMsgInput) && File.Exists(commitMsgInput))
-{
-    commitMsg = File.ReadAllText(commitMsgInput).Trim();
-}
-else if (!string.IsNullOrEmpty(commitMsgInput))
-{
-    commitMsg = commitMsgInput.Trim();
-}
-
-
-bool skipReview = commitMsg.Contains("[SKIP REVIEW]", StringComparison.OrdinalIgnoreCase);
-
-if (!skipReview && !string.IsNullOrWhiteSpace(stagedDiff))
-{
-    //Console.WriteLine("🤖 Running OWASP Security Review...");
-    //string codeReviewReport = await aiService.GenerateCodeReviewAsync(stagedDiff);
-    //string reportPath = Path.Combine(Directory.GetCurrentDirectory(), "CodeReviewReport.md");
-    //File.WriteAllText(reportPath, codeReviewReport);
-
-    //bool isPassed = codeReviewReport.Contains("Status: PASS", StringComparison.OrdinalIgnoreCase);
-
-    //if (isPassed)
-    //{
-    //    Console.WriteLine($"✅ Code review passed. Report saved to {reportPath}");
-    //}
-    //else
-    //{
-    //    Console.WriteLine($"\n❌ Code Review found potential HIGH or CRITICAL OWASP issues.");
-    //    Console.WriteLine($"--- AI Response (Status check failed) ---");
-    //    Console.WriteLine(codeReviewReport.Length > 200 ? codeReviewReport.Substring(0, 200) + "..." : codeReviewReport);
-    //    Console.WriteLine($"------------------------------------------");
-    //    Console.WriteLine($"Please check {reportPath} for details.");
-    //    Console.WriteLine("\n💡 To bypass this check for emergency commits, add [SKIP REVIEW] to your commit message.");
-
-    //    await SuggestAndExitAsync();
-    //    Environment.Exit(1);
-    //}
-
-    
-
-    // Get the HTML report from your AI service
-    string htmlReport = await aiService.GenerateCodeReviewHtmlReportAsync(stagedDiff);
-    htmlReport = AiResponseCleaner.RemoveCodeFences(htmlReport);
-
-    var downloadsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "Downloads");
-    var reportPath = Path.Combine(downloadsPath, "CodeReviewReport.html");
-    File.WriteAllText(reportPath, htmlReport);
-
-    // Try to open the HTML file automatically
-    try
-    {
-        var psi = new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = reportPath,
-            UseShellExecute = true
-        };
-        System.Diagnostics.Process.Start(psi);
-    }
-    catch { /* Ignore open errors */ }
-}
-
-// create readme file
-var solutionRoot = AppContext.BaseDirectory;
-var rootPath = Directory.GetCurrentDirectory();
-if (solutionRoot.Contains("bin"))
-{
-    solutionRoot = Directory.GetParent(solutionRoot)!.Parent!.Parent!.Parent!.FullName;
-}
-
-string projectSummaries = ProjectSummaryHelper.BuildProjectSummaries(solutionRoot);
-string readmeContent = await aiService
-    .GenerateMasterFunctionalReadmeAsync(projectSummaries);
-File.WriteAllText(Path.Combine(rootPath, "README.md"), readmeContent);
-
-// Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
-bool isAiSuggested = false;
-if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
-{
-    // Remove [AI], [AI] , [AI]:, [AI] :, etc. prefix
-    var aiPrefix = "[AI]";
-    commitMsg = commitMsg.Substring(aiPrefix.Length).TrimStart();
-    if (commitMsg.StartsWith(":"))
-    {
-        commitMsg = commitMsg.Substring(1).TrimStart();
-    }
-    isAiSuggested = true;
-}
-
-
-if (isAiSuggested)
-{
-    // Accept AI-suggested commit message as valid, skip further validation and suggestion
-}
-else
-{
-    if (!validator.ValidateCommitMessage(commitMsg))
-    {
-        await SuggestAndExitAsync();
-    }
-
-    bool isSemanticallyValid = await aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
-
-    if (!isSemanticallyValid)
-    {
-        Console.WriteLine("\n❌ Commit message does not accurately describe the changes.");
-        await SuggestAndExitAsync();
-    }
-}
-
-async Task SuggestAndExitAsync()
-{
-    try
-    {
-        string aiResponse = await aiService.GenerateCommitMessageAsync(stagedDiff);
-        string suggestedCommitMsg = ExtractValidCommitMessage(aiResponse);
-
-        if (string.IsNullOrEmpty(suggestedCommitMsg))
-        {
-            suggestedCommitMsg = aiResponse.Trim();
-        }
-
-        Console.WriteLine($"[AI] {suggestedCommitMsg}");
-
-        Environment.Exit(1);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("❌ AI generation failed.");
-        Console.WriteLine(ex.ToString());
-        Environment.Exit(1);
-    }
-}
-
-string ExtractValidCommitMessage(string aiResponse)
-{
-    var allowedTypes = new[]
-    {
-        "feat:", "fix:", "bug:", "chore:", "docs:",
-        "style:", "refactor:", "perf:", "test:", "build:", "ci:", "revert:"
-    };
-
-    var lines = aiResponse.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-    // Find the first line that starts with an allowed type
-    int startIndex = -1;
-    for (int i = 0; i < lines.Length; i++)
-    {
-        var trimmed = lines[i].Trim('`', ' ', '\r');
-        if (allowedTypes.Any(type => trimmed.StartsWith(type, StringComparison.OrdinalIgnoreCase)))
-        {
-            startIndex = i;
-            break;
-        }
-    }
-
-    if (startIndex == -1) return string.Empty;
-
-    // Return the rest of the response starting from the valid line
-    return string.Join("\n", lines.Skip(startIndex)).Trim();
-}
+var executor = app.Services.GetRequiredService<ICommitWorkflowExecutor>();
+await executor.ExecuteAsync(args);

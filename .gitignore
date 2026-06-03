@@ -365,3 +365,9 @@ FodyWeavers.xsd
 
 # Ignore environment variable files
 .env
+
+# Ignore docubot setup publish folder and node modules
+package-lock.json
+packages/
+node_modules/
+docubot-agent/
