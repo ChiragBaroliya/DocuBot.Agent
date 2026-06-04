@@ -160,11 +160,7 @@ namespace DocuBot.Agent.Services
                 var functionalReadmeRelativePath = "README.md";
                 var functionalReadmeAbsolutePath = Path.Combine(repositoryRoot, functionalReadmeRelativePath);
 
-                var existingReadme = File.Exists(functionalReadmeAbsolutePath)
-                    ? await File.ReadAllTextAsync(functionalReadmeAbsolutePath)
-                    : string.Empty;
-
-                var functionalInput = BuildReadmeSourceInput(stagedDiff, existingReadme);
+                var functionalInput = BuildReadmeSourceInput(stagedDiff);
 
                 var readmeContent = await _aiService.GenerateMasterFunctionalReadmeAsync(functionalInput);
                 if (string.IsNullOrWhiteSpace(readmeContent))
@@ -183,28 +179,14 @@ namespace DocuBot.Agent.Services
             }
         }
 
-        private static string BuildReadmeSourceInput(string stagedDiff, string existingReadme)
+        private static string BuildReadmeSourceInput(string stagedDiff)
         {
             const int maxDiffChars = 12000;
             var trimmedDiff = stagedDiff.Length > maxDiffChars
                 ? stagedDiff[..maxDiffChars]
                 : stagedDiff;
 
-            const int maxExistingReadmeChars = 10000;
-            var trimmedExistingReadme = existingReadme.Length > maxExistingReadmeChars
-                ? existingReadme[..maxExistingReadmeChars]
-                : existingReadme;
-
-            var sb = new StringBuilder();
-            sb.AppendLine("Functional README source input (may contain technical text that must be translated to simple functional language):");
-            sb.AppendLine();
-            sb.AppendLine("Existing README.md (if any):");
-            sb.AppendLine(trimmedExistingReadme);
-            sb.AppendLine();
-            sb.AppendLine("Staged diff:");
-            sb.AppendLine(trimmedDiff);
-
-            return sb.ToString();
+            return trimmedDiff;
         }
 
         private static string ResolveRepositoryRoot()

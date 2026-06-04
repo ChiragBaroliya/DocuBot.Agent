@@ -212,5 +212,44 @@ namespace DocuBot.Tests.Services
             // Assert
             Assert.Contains("[AI Response Parsing Error]", result);
         }
+
+        [Fact]
+        public async Task GenerateMasterFunctionalReadmeAsync_ShouldInvokeModelWithStagedDiffPrompt()
+        {
+            // Arrange
+            var projectDescription = "some git staged diff details";
+            var expectedReadme = "# Functional Overview of Changes\nSome generated readme content";
+
+            var responsePayload = new
+            {
+                content = new[]
+                {
+                    new { type = "text", text = expectedReadme }
+                }
+            };
+            var responseJson = JsonSerializer.Serialize(responsePayload);
+            var responseStream = new MemoryStream(Encoding.UTF8.GetBytes(responseJson));
+
+            var response = new InvokeModelResponse
+            {
+                Body = responseStream,
+                HttpStatusCode = System.Net.HttpStatusCode.OK
+            };
+
+            _mockBedrockClient
+                .Setup(c => c.InvokeModelAsync(It.IsAny<InvokeModelRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            // Act
+            var result = await _service.GenerateMasterFunctionalReadmeAsync(projectDescription);
+
+            // Assert
+            Assert.Equal(expectedReadme, result);
+            _mockBedrockClient.Verify(c => c.InvokeModelAsync(
+                It.Is<InvokeModelRequest>(r => 
+                    Encoding.UTF8.GetString(r.Body.ToArray()).Contains("PURE FUNCTIONAL DOCUMENTATION explaining ONLY the changes") &&
+                    Encoding.UTF8.GetString(r.Body.ToArray()).Contains(projectDescription)),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

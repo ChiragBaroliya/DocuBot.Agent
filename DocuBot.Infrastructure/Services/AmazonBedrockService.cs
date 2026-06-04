@@ -255,27 +255,19 @@ Here is the code:
         public async Task<string> GenerateMasterFunctionalReadmeAsync(string projectDescription)
         {
             string prompt = $@"
-                            Generate a master README as PURE FUNCTIONAL DOCUMENTATION.
+                            Generate a functional document as PURE FUNCTIONAL DOCUMENTATION explaining ONLY the changes introduced in the git staged diff.
                             Target audience: business stakeholders and non-technical users.
-                            Focus only on user/business behavior and outcomes.
-                            If staged changes or recent changes are included in the input, reflect those changes explicitly.
-                            Treat all technical input (code, diffs, configs) as source material that must be translated into simple functional language.
-                            Do not invent features outside the provided input.
-                            Rewrite the document fully to match this format, even if existing README contains technical sections.
+                            Focus only on user/business behavior, outcomes, and business rules.
+                            Treat all technical input (code, diffs, configs) in the staged diff as source material that must be translated into simple functional language.
+                            Do not invent features or document code that is not part of the staged changes.
 
                             Return the document with EXACTLY these section headings and order:
-                            1. Introduction
-                            2. Scope
-                            3. Business Purpose
-                            4. User Roles
-                            5. Functional Requirements
-                            6. Use Cases
-                            7. Business Rules
-                            8. Process Flow
-                            9. API Mapping (functional mapping only: capability to interface)
-                            10. Error Scenarios
-                            11. Acceptance Criteria
-                            12. Assumptions & Limitations
+                            1. Functional Overview of Changes
+                            2. Business Purpose
+                            3. Affected User Roles & Actions
+                            4. Business Rules & Validations
+                            5. Error Scenarios
+                            6. Acceptance Criteria
 
                             Writing constraints:
                             - Use plain business language.
@@ -285,8 +277,8 @@ Here is the code:
                             - No setup/deployment/run instructions.
                             - No dependency lists.
                             - No technical implementation explanation.
-                            - In API Mapping, describe only business capability mapping (e.g., ""Create Employee""), not routes or HTTP verbs.
-                            - For APIs, explain usage only in end-user terms with Swagger/Postman workflow (discover operation, provide business inputs, submit, review response meaning) without technical examples.
+                            - Describe only business capability mapping (e.g., ""Create Employee""), not routes or HTTP verbs.
+                            - Explain usage only in end-user terms (provide business inputs, submit, review response meaning) without technical examples.
                             - In User Roles, list role names and what each role can do in business terms.
                             - Keep language short, clear, and understandable by non-technical users.
 
@@ -295,7 +287,7 @@ Here is the code:
                             - Remove all backticks (`), code fences, and technical examples.
                             - Remove endpoint paths, request/response payload samples, and programming terminology.
                             - Output must be readable by a non-technical stakeholder without software background.
-                            - Return only final Markdown with the 12 sections.
+                            - Return only final Markdown with the 6 sections.
 
                             Strict exclusions:
                             - Technical architecture details
@@ -303,7 +295,7 @@ Here is the code:
                             - Dependency/tool/package lists
                             - Setup, deployment, or run instructions
 
-                            Source input:
+                            Source input (Git Staged Diff):
                             {projectDescription}
                             ";
             return await GetResponseAsync(_defaultModelId, prompt);
