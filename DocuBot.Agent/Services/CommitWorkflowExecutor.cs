@@ -164,13 +164,15 @@ namespace DocuBot.Agent.Services
                     ? await File.ReadAllTextAsync(functionalReadmeAbsolutePath)
                     : string.Empty;
 
-                var prompt = BuildReadmePrompt(stagedDiff, existingReadme);
+                var functionalInput = BuildReadmeSourceInput(stagedDiff, existingReadme);
 
-                var readmeContent = await _aiService.GenerateMasterFunctionalReadmeAsync(prompt);
+                var readmeContent = await _aiService.GenerateMasterFunctionalReadmeAsync(functionalInput);
                 if (string.IsNullOrWhiteSpace(readmeContent))
                 {
                     return;
                 }
+
+                readmeContent = AiResponseCleaner.RemoveCodeFences(readmeContent).Trim();
 
                 await File.WriteAllTextAsync(functionalReadmeAbsolutePath, readmeContent.Trim());
                 _gitService.StageFile(functionalReadmeRelativePath);
@@ -181,7 +183,7 @@ namespace DocuBot.Agent.Services
             }
         }
 
-        private static string BuildReadmePrompt(string stagedDiff, string existingReadme)
+        private static string BuildReadmeSourceInput(string stagedDiff, string existingReadme)
         {
             const int maxDiffChars = 12000;
             var trimmedDiff = stagedDiff.Length > maxDiffChars
@@ -194,16 +196,7 @@ namespace DocuBot.Agent.Services
                 : existingReadme;
 
             var sb = new StringBuilder();
-            sb.AppendLine("Generate or update README.md for this repository.");
-            sb.AppendLine("Use the existing README content as baseline when available.");
-            sb.AppendLine("Do not invent modules not present in the staged changes.");
-            sb.AppendLine("Keep it implementation-accurate and include:");
-            sb.AppendLine("- Overview");
-            sb.AppendLine("- Key functional flow");
-            sb.AppendLine("- Dependencies");
-            sb.AppendLine("- How to run");
-            sb.AppendLine("- Error handling behavior");
-            sb.AppendLine("- Recent committed/staged changes reflected in the document");
+            sb.AppendLine("Functional README source input (may contain technical text that must be translated to simple functional language):");
             sb.AppendLine();
             sb.AppendLine("Existing README.md (if any):");
             sb.AppendLine(trimmedExistingReadme);
