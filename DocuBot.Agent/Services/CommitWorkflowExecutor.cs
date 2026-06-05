@@ -79,36 +79,6 @@ namespace DocuBot.Agent.Services
                 catch { /* Ignore open errors */ }
             }
 
-            // create readme files
-            //var rootPath = ResolveRepositoryRoot();
-            //var solutionRoot = rootPath;
-
-            //var projects = ProjectSummaryHelper.GetProjectSummaries(solutionRoot);
-            //var maxParallelism = Math.Clamp(projects.Count, 1, 4);
-            //using (var semaphore = new SemaphoreSlim(maxParallelism))
-            //{
-            //    var readmeTasks = projects.Select(async project =>
-            //    {
-            //        await semaphore.WaitAsync();
-            //        try
-            //        {
-            //            string projectReadmeContent = await _aiService.GenerateMasterFunctionalReadmeAsync(
-            //                $"Project: {project.ProjectName}\nTech stack: {project.TechStack}\nLocation: {project.ProjectDirectory}\n{project.Summary}");
-
-            //            await File.WriteAllTextAsync(
-            //                Path.Combine(project.ProjectDirectory, "README.md"),
-            //                projectReadmeContent);
-            //        }
-            //        finally
-            //        {
-            //            semaphore.Release();
-            //        }
-            //    });
-
-            //    await Task.WhenAll(readmeTasks);
-            //}
-
-
             // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
             bool isAiSuggested = false;
             if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
