@@ -31,11 +31,11 @@ namespace DocuBot.Agent.Services
             string stagedDiff = _gitService.GetStagedDiff();
             string commitMsg = string.Empty;
 
-            // ✅ Branch validation
+            // Branch validation
             var ignoredBranches = new[] { "master", "main", "develop" };
             if (!ignoredBranches.Contains(branch.ToLower()) && !_validator.ValidateBranchName(branch.ToLower()))
             {
-                Console.WriteLine("ERROR: Invalid branch name (use feature/*, bugfix/*, hotfix/*).");
+                Console.WriteLine("Invalid branch name. Use feature/*, bugfix/*, or hotfix/*.");
                 Console.WriteLine($"Current branch: {branch}");
                 Environment.Exit(1);
             }
@@ -79,39 +79,23 @@ namespace DocuBot.Agent.Services
                 catch { /* Ignore open errors */ }
             }
 
-            // Accept any commit message starting with [AI], [AI] , [AI]:, [AI] :, etc.
-            bool isAiSuggested = false;
-            if (commitMsg.StartsWith("[AI]", StringComparison.OrdinalIgnoreCase))
+            // generate functional README update in parallel (non-blocking)
+            await UpdateFunctionalReadmeAsync(stagedDiff);
+
+            // validate commit message and return ai suggested commit message
+
+            if (!_validator.ValidateCommitMessage(commitMsg))
             {
-                // Remove [AI], [AI] , [AI]:, [AI] :, etc. prefix
-                var aiPrefix = "[AI]";
-                commitMsg = commitMsg.Substring(aiPrefix.Length).TrimStart();
-                if (commitMsg.StartsWith(":"))
-                {
-                    commitMsg = commitMsg.Substring(1).TrimStart();
-                }
-                isAiSuggested = true;
+                Console.WriteLine("Your commit message format is invalid. Please use the AI-suggested message below:");
+                await SuggestAndExitAsync();
             }
 
-            if (isAiSuggested)
-            {
-                // Accept AI-suggested commit message as valid, skip further validation and suggestion
-            }
-            else
-            {
-                if (!_validator.ValidateCommitMessage(commitMsg))
-                {
-                    await UpdateFunctionalReadmeAsync(stagedDiff);
-                    await SuggestAndExitAsync();
-                }
+            bool isSemanticallyValid = await _aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
 
-                bool isSemanticallyValid = await _aiService.ValidateCommitMessageAsync(commitMsg, stagedDiff);
-
-                if (!isSemanticallyValid)
-                {
-                    Console.WriteLine("\n❌ Commit message does not accurately describe the changes.");
-                    await SuggestAndExitAsync();
-                }
+            if (!isSemanticallyValid)
+            {
+                Console.WriteLine("Your commit message does not match the staged changes. Please use the AI-suggested message below:");
+                await SuggestAndExitAsync();
             }
 
             
@@ -145,7 +129,7 @@ namespace DocuBot.Agent.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Functional README update failed: {ex.Message}");
+                Console.WriteLine($"Functional README update failed: {ex.Message}");
             }
         }
 
@@ -201,13 +185,13 @@ namespace DocuBot.Agent.Services
                     suggestedCommitMsg = aiResponse.Trim();
                 }
 
-                Console.WriteLine($"[AI] {suggestedCommitMsg}");
-
+                //Console.WriteLine("AI Suggested commit message:");
+                Console.WriteLine(suggestedCommitMsg);
                 Environment.Exit(1);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("❌ AI generation failed.");
+                Console.WriteLine("Suggested commit message is currently unavailable.");
                 Console.WriteLine(ex.ToString());
                 Environment.Exit(1);
             }
@@ -237,8 +221,8 @@ namespace DocuBot.Agent.Services
 
             if (startIndex == -1) return string.Empty;
 
-            // Return the rest of the response starting from the valid line
-            return string.Join("\n", lines.Skip(startIndex)).Trim();
+            // Return only the first valid conventional commit subject line
+            return lines[startIndex].Trim('`', ' ', '\r').Trim();
         }
     }
 }

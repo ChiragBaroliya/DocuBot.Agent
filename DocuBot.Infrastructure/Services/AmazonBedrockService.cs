@@ -143,10 +143,10 @@ namespace DocuBot.Infrastructure.Services
                 "test: Adding/updating tests\n" +
                 "chore: Maintenance tasks\n\n" +
                 "IMPORTANT:\n" +
-                "- Return a detailed multi-line commit message\n" +
-                "- Start with a subject line (type: short description)\n" +
-                "- Followed by a blank line and then a detailed body explaining the changes\n" +
-                "- Use the body to explain 'what' and 'why', not just 'how'\n" +
+                "- Return ONLY a single-line commit message\n" +
+                "- Format must be: type: short description\n" +
+                "- Do not include body, bullets, explanations, markdown, or code fences\n" +
+                "- Keep it concise and summary-style\n" +
                 "- Do NOT include conversational filler or prefix like 'Here is the message'\n\n";
 
             string prompt = $"{guidance}Git diff:\n{diff}";
